@@ -727,9 +727,9 @@ class MusicBot(discord.Client):
 
         Responds with PONG!.
         """
-        if author.id = 169392354212446209:
+        if author.id == 169392354212446209:
             return Response("Ping Pong is the best, right Nahtan?", delete_after=15)
-        if author.id = 120230735817736193:
+        if author.id == 120230735817736193:
             return Response("Toothless? I could've sworn you had... teeth", delete_after=15)
         else:
             return Response("PONG!", delete_after=15)
