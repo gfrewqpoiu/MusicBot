@@ -1102,7 +1102,6 @@ class MusicBot(discord.Client):
                 ok_message = await self.safe_send_message(channel, "Alright, coming up!")
 
                 await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
-                time.sleep(5)
                 await self.safe_delete_message(ok_message)
 
                 return
@@ -1566,7 +1565,6 @@ class MusicBot(discord.Client):
     async def cmd_restart(self):
         raise exceptions.RestartSignal
 
-    @owner_only
     async def cmd_shutdown(self):
         raise exceptions.TerminateSignal
 
