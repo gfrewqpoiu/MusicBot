@@ -623,7 +623,7 @@ class MusicBot(discord.Client):
 
         helpmsg += ", ".join(commands)
         helpmsg += "```"
-        helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
+        helpmsg += "https://github.com/gfrewqpoiu/MusicBot/wiki/Commands-list"
 
         return Response(helpmsg, reply=True, delete_after=60)
 
@@ -719,6 +719,18 @@ class MusicBot(discord.Client):
         else:
             usr = user_mentions[0]
             return Response("%s's id is `%s`" % (usr.name, usr.id), reply=True, delete_after=35)
+
+    async def cmd_ping(self, author,):
+        """
+        Usage:
+            {command_prefix}ping
+
+        Responds with PONG!.
+        """
+        if author.id = 169392354212446209:
+            return Response("Ping Pong is the best, right Nahtan?", delete_after=15)
+        else:
+            return Response("PONG!", delete_after=15)
 
     @owner_only
     async def cmd_joinserver(self, message, server_link):
@@ -1265,7 +1277,7 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}skip
 
-        Skips the current song when enough votes are cast, or by the bot owner.
+        Skips the current song when enough votes are cast.
         """
 
         if player.is_stopped:
@@ -1275,18 +1287,27 @@ class MusicBot(discord.Client):
             print("Either Something strange is happening or a song is downloading.  "
                   "You might want to restart the bot if it doesn't start working.")
 
-        if author.id == self.config.owner_id or permissions.instaskip:
-            player.skip()  # check autopause stuff here
-            return
+        if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
+            player.current_entry.meta.get('author', False)
+            if author.id == player.current_entry.meta['author'].id: #If person that requested the song skips, skip instantly
+                player.skip()  # check autopause stuff here
+                return
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
-            m.deaf or m.self_deaf or m.id in [self.config.owner_id, self.user.id]))
+            m.deaf or m.self_deaf or m.id in [self.user.id]))
 
         num_skips = player.skip_state.add_skipper(author.id, message)
-
-        skips_remaining = min(self.config.skips_required,
+        
+        if num_voice > 2:
+            skips_remaining = min(self.config.skips_required,
                               sane_round_int(num_voice * self.config.skip_ratio_required)) - num_skips
-
+        else:
+            if num_voice == 2:
+                skips_remaining = 1 - num_skips
+            
+            else:
+                skips_remaining = 0
+              
         if skips_remaining <= 0:
             player.skip()  # check autopause stuff here
             return Response(
@@ -1312,6 +1333,23 @@ class MusicBot(discord.Client):
                 delete_after=20
             )
 
+    async def cmd_instantskip(self, player):
+        """
+        Usage:
+            {command_prefix}instantskip
+
+        Instantly skips the current song.
+        """
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't skip! The player is not playing!")
+
+        if not player.current_entry:  # Do more checks here to see
+            print("Something strange is happening.  You might want to restart the bot if its not working.")
+
+        player.skip()  # check autopause stuff here
+        return
+            
     async def cmd_volume(self, message, player, new_volume=None):
         """
         Usage:
@@ -1401,6 +1439,54 @@ class MusicBot(discord.Client):
 
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
+        
+    async def cmd_next(self, channel, player):
+        """
+        Usage:
+            {command_prefix}next
+
+        Prints the next song in the queue.
+        """
+
+        lines = []
+        unlisted = 0
+        z = 0
+        andmoretext = '* ... and %s more*' % ('x' * len(player.playlist.entries))
+
+        if player.current_entry:
+            song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
+            song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
+            prog_str = '`[%s/%s]`' % (song_progress, song_total)
+
+            if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
+                lines.append("Now Playing: **%s** added by **%s** %s\n" % (
+                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str))
+            else:
+                lines.append("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str))
+
+        if player.playlist.peek():       
+            item = player.playlist.peek()
+            if item.meta.get('channel', False) and item.meta.get('author', False):
+                nextline = 'Next: **{}** added by **{}**'.format(item.title, item.meta['author'].name).strip()
+            else:
+                nextline = '`Next:` **{}**'.format(item.title).strip()
+             
+            while z < len(player.playlist.entries) - 1:    
+                unlisted += 1
+                z = z + 1
+
+            lines.append(nextline)
+
+        if unlisted:
+            lines.append('\n*... and %s more*' % unlisted)
+        if len(lines) == 1:
+            lines.append('Nothing else queued! Queue something with {}play.'.format(self.config.command_prefix))    
+        if not lines:
+            lines.append(
+                'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
+
+        message = '\n'.join(lines)
+        return Response(message, delete_after=60)
 
     async def cmd_clean(self, message, channel, author, search_range=50):
         """
@@ -1530,7 +1616,6 @@ class MusicBot(discord.Client):
 
     async def cmd_restart(self):
         raise exceptions.RestartSignal
-
 
     async def cmd_shutdown(self):
         raise exceptions.TerminateSignal
