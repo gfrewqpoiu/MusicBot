@@ -1617,7 +1617,6 @@ class MusicBot(discord.Client):
     async def cmd_restart(self):
         raise exceptions.RestartSignal
 
-
     async def cmd_shutdown(self):
         raise exceptions.TerminateSignal
 
