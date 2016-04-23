@@ -1272,7 +1272,7 @@ class MusicBot(discord.Client):
         player.playlist.clear()
         return Response(':put_litter_in_its_place:', delete_after=20)
 
-    async def cmd_skip(self, player, channel, author, message, voice_channel):
+    async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
         """
         Usage:
             {command_prefix}skip
