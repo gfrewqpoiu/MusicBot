@@ -1491,7 +1491,7 @@ class MusicBot(discord.Client):
         if not player.current_entry:  # Do more checks here to see
             print("Either Something strange is happening or a song is downloading.  "
                   "You might want to restart the bot if it doesn't start working.")
-
+        
         if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
             player.current_entry.meta.get('author', False)
             if author.id == player.current_entry.meta['author'].id: #If person that requested the song skips, skip instantly
