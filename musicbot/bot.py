@@ -1500,6 +1500,10 @@ class MusicBot(discord.Client):
                 player.skip()  # check autopause stuff here
                 return
 
+        if author.self_deaf == True or author.deaf == True:
+            return Response('You cannot use !skip while deafened',reply=True,delete_after=20)
+            return
+                    
         num_voice = sum(1 for m in voice_channel.voice_members if not (
             m.deaf or m.self_deaf or m.id in [self.user.id]))
 
