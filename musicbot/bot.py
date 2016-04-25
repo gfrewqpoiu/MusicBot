@@ -755,7 +755,7 @@ class MusicBot(discord.Client):
         if author.id == "167311142744489984":
             return Response("Yes master?", delete_after=15)
         if author.id == "152525646436761600":
-            return Response("YES LINDA ITS EDM", delete_after=15)
+            return Response("Yes I'm still here Linda, now can I have a :cookie:?", delete_after=15)
         if author.id == "98165970295619584":
             return Response("#cowbellion", delete_after=15)    
         else:
