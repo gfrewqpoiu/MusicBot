@@ -756,6 +756,8 @@ class MusicBot(discord.Client):
             return Response("Yes master?", delete_after=15)
         if author.id == "152525646436761600":
             return Response("YES LINDA ITS EDM", delete_after=15)
+        if author.id == "98165970295619584":
+            return Response("#CowBellion", delete_after=15)    
         else:
             return Response("PONG!", delete_after=15)
 
