@@ -761,6 +761,15 @@ class MusicBot(discord.Client):
         else:
             return Response("PONG!", delete_after=15)
 
+    async def cmd_rules(self, author,):
+        """
+        Usage:
+            {command_prefix}rules
+
+        Links the Rules of the Server.
+        """
+        return Response("The Rules and commands can be found here: https://goo.gl/fRdK5U", reply=True, delete_after=30)
+        
     @owner_only
     async def cmd_joinserver(self, message, server_link):
         """
