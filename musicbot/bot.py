@@ -747,7 +747,7 @@ class MusicBot(discord.Client):
         Gives the author a cookie or the user the author mentions.
         """
         if not user_mentions:
-            return Response('Here, have a :cookie:' reply=True, delete_after=30)
+            return Response("Here have a :cookie:", reply=True, delete_after=30)
         else:
             usr = user_mentions[0]
             return Response("%s here is a :cookie: for you from `%s`" % (usr.name, author.name), reply=False, delete_after=30)
