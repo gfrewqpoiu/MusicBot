@@ -14,7 +14,7 @@ from discord.enums import ChannelType
 from discord.voice_client import VoiceClient
 
 from io import BytesIO
-from random import choice, shuffle
+from random import choice, shuffle, randint
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
@@ -746,11 +746,15 @@ class MusicBot(discord.Client):
 
         Gives the author a cookie or the user the author mentions.
         """
+        i = randint(1, 20)
         if not user_mentions:
             return Response("Here have a :cookie:", reply=True, delete_after=30)
         else:
             usr = user_mentions[0]
-            return Response("%s here is a :cookie: for you from %s" % (usr.mention, author.name), reply=False, delete_after=30)
+            if i != 20:
+                return Response("%s here is a :cookie: for you from %s" % (usr.mention, author.name), reply=False, delete_after=30)
+            else:
+                return Response("%s here is a :pizza: for you from %s \nWait that is not right! \nTell gfrew to fix me!" % (usr.mention, author.name), reply=False, delete_after=30)
 
     async def cmd_ping(self, author,):
         """
