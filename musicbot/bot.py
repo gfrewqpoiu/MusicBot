@@ -1676,6 +1676,83 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
         
+    async def cmd_food(self, author, user_mentions):
+        """
+        Usage:
+            {command_prefix}food
+
+        Gives you Food or the Person you mentioned.
+        """
+        emoji = [
+            "a :pizza: ",
+            "an :apple: ",
+            "a :peach: ",
+            "a :hamburger: ",
+            ":fries: ",
+            "a :eggplant: ",
+            "a :strawberry: ",
+            "a :watermelon: ",
+            "a :chestnut: ",
+            "a :ear_of_rice: ",
+            "a :banana: ",
+            "a :pineapple: ",
+            "a :poultry_leg: ",
+            "a :tangerine: ",
+            "mom's :spaghetti: ",
+            "a :herb: ",
+            "some :grapes: ",
+            "some :cherries: ",
+            ":shaved_ice: ",
+            "some :bread: ",
+            "a :fried_shrimp: ",
+            "a :fish_cake: ",
+            "a :bento: ",
+            "a :mushroom: which may or may not be poisonous",
+            "some :ramen: ",
+            "a :rice: ",
+            "a :lemon: ",
+            "an :egg: ",
+            "a :corn: ",
+            "a :green_apple: ",
+            "a :meat_on_bone: ",
+            "a :honey_pot: ",
+            "a :tomato:",
+            "a :stew: ",
+            "a :melon: ",
+            "a :curry: ",
+            "a :custard: ",
+            "a :rice_ball: ",
+            "a :pear: ",
+            "a :dango: ",
+            "a :sweet_potato: ",
+            #drinks
+            "a :beer: ",
+            "a :coffee: ",
+            "a :tropical_drink: ",
+            "a :wine_glass: ",
+            "a :cocktail: ",
+            "a :baby_bottle: ",
+            "a :tea: stolen from Kany ",
+            "a :sake: ",
+            "a :oden: ",
+            #sweets
+            "a :ice_cream: ",
+            "a :chocolate_bar: ",
+            "a :doughnut: ",
+            "a :cake: ",
+            "a :cookie: ",
+            "a :lollipop: ",
+            "**free** :candy: ",
+            "some :ice_cream: ",
+            "a :rice_cracker: "
+        ]
+        
+        if not user_mentions: 
+            return Response("Here have %s" % (choice(emoji)))
+        else:
+            usr = user_mentions[0]
+            return Response("%s have %s to eat from %s" % (usr.mention, choice(emoji), author.name))
+
     async def cmd_next(self, channel, player):
         """
         Usage:
