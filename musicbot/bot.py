@@ -1732,7 +1732,7 @@ class MusicBot(discord.Client):
             "a :wine_glass: ",
             "a :cocktail: ",
             "a :baby_bottle: ",
-            "a :tea: stolen from Kany ",
+            "a :tea:",
             "a :sake: ",
             "a :oden: ",
             #sweets
