@@ -150,6 +150,8 @@ class MusicBot(discord.Client):
     async def _auto_summon(self, channel=None):
         owner = self._get_owner(voice=True)
         if owner:
+            self.safe_print("Found owner in voice channel \"%s\", attempting to join..." % owner.voice_channel.name)
+            # TODO: Effort
             await self.cmd_summon(owner.voice_channel, owner, None)
             return owner.voice_channel
 
@@ -234,14 +236,14 @@ class MusicBot(discord.Client):
             }
 
             await self.ws.send(utils.to_json(payload))
-            await asyncio.wait_for(self._session_id_found.wait(), timeout=5.0, loop=self.loop)
-            await asyncio.wait_for(self._voice_data_found.wait(), timeout=5.0, loop=self.loop)
 
-            session_id = self.session_id
-            voice_data = self._voice_data_found.data
+            s_id = self.ws.wait_for('VOICE_STATE_UPDATE', lambda d: d.get('user_id') == self.user.id)
+            s_id_data = await asyncio.wait_for(s_id, timeout=7.0, loop=self.loop)
 
-            self._session_id_found.clear()
-            self._voice_data_found.clear()
+            _voice_data = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: True)
+
+            session_id = s_id_data.get('session_id')
+            voice_data = await asyncio.wait_for(_voice_data, timeout=7.0, loop=self.loop)
 
             kwargs = {
                 'user': self.user,
@@ -258,7 +260,11 @@ class MusicBot(discord.Client):
             try:
                 await asyncio.wait_for(voice_client.connect(), timeout=6, loop=self.loop)
             except:
-                voice_client.keep_alive.cancel()
+                try:
+                    voice_client.socket.close()
+                except:
+                    pass
+
                 await voice_client.ws.close()
 
                 await self.ws.send(utils.to_json({
@@ -274,10 +280,11 @@ class MusicBot(discord.Client):
                 # print("Unable to fully connect to voice chat.")
                 raise exceptions.HelpfulError(
                     "Cannot establish connection to voice chat.  "
-                    "Something is blocking outgoing UDP packets.",
+                    "Something may be blocking outgoing UDP packets.",
 
+                    "This may be an issue with a firewall blocking UDP.  "
                     "Figure out what is blocking UDP and disable it.  "
-                    "It's most likely a system firewall or overbearing anti-virus firewall."
+                    "It's most likely a system firewall or overbearing anti-virus firewall.  "
                 )
 
             return voice_client
@@ -403,7 +410,12 @@ class MusicBot(discord.Client):
                     # Blarg how do I want to do this
 
                 # TODO: better checks here
-                await player.playlist.add_entry(song_url, channel=None, author=None)
+                try:
+                    await player.playlist.add_entry(song_url, channel=None, author=None)
+                except exceptions.ExtractionError as e:
+                    print("Error adding song from autoplaylist:", e)
+                    continue
+
                 break
 
             if not self.autoplaylist:
@@ -477,7 +489,7 @@ class MusicBot(discord.Client):
         try:
             self.loop.run_until_complete(self.logout())
         except: # Can be ignored
-            traceback.print_exc()
+            pass
 
         pending = asyncio.Task.all_tasks()
         gathered = asyncio.gather(*pending)
@@ -610,6 +622,7 @@ class MusicBot(discord.Client):
         elif self.config.auto_summon:
             print("Attempting to autosummon...", flush=True)
 
+            # waitfor + get value
             owner_vc = await self._auto_summon()
 
             if owner_vc:
