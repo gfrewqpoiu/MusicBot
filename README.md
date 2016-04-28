@@ -27,5 +27,5 @@ If you have any errors, read the FAQ. If that didn't help, you can ask for assis
 [Rhino Help Server](http://discord.me/rhinohelp "Discord link")
 
 ### FAQ
-### estXcrew was here
+#####Contributors: estXcrew and Venator, thank you for your Help!
 Some frequently asked questions are listed on the wiki [here](https://github.com/SexualRhinoceros/MusicBot/wiki/FAQ "Wiki").
