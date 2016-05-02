@@ -14,10 +14,10 @@ from discord.enums import ChannelType
 from discord.voice_client import VoiceClient
 
 from io import BytesIO
-from random import choice, shuffle, randint
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
+from random import choice, shuffle, randint
 from collections import defaultdict
 
 from musicbot.playlist import Playlist
@@ -1543,6 +1543,7 @@ class MusicBot(discord.Client):
             else:
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
+<<<<<<< HEAD
         
         if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
             player.current_entry.meta.get('author', False)
