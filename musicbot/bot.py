@@ -18,7 +18,6 @@ from random import choice, shuffle, randint
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
-from random import choice, shuffle
 from collections import defaultdict
 
 from musicbot.playlist import Playlist
@@ -65,9 +64,10 @@ class Response:
 
 class MusicBot(discord.Client):
     def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
+        super().__init__()
 
         self.players = {}
-        self.voice_clients = {}
+        self.the_voice_clients = {}
         self.voice_client_connect_lock = asyncio.Lock()
         self.voice_client_move_lock = asyncio.Lock()
         self.config = Config(config_file)
@@ -84,13 +84,11 @@ class MusicBot(discord.Client):
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
 
-        super().__init__()
-
         self.headers['user-agent'] += ' MusicBot/%s' % BOTVERSION
 
         # TODO: Fix these
         # These aren't multi-server compatible, which is ok for now, but will have to be redone when multi-server is possible
-        ssd_defaults = {'last_np_msg': None, 'auto_paused': None}
+        ssd_defaults = {'last_np_msg': None, 'auto_paused': False}
         self.server_specific_data = defaultdict(lambda: dict(ssd_defaults))
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
@@ -229,20 +227,8 @@ class MusicBot(discord.Client):
 
         with await self.voice_client_connect_lock:
             server = channel.server
-            if server.id in self.voice_clients:
-                return self.voice_clients[server.id]
-
-            payload = {
-                'op': 4,
-                'd': {
-                    'guild_id': channel.server.id,
-                    'channel_id': channel.id,
-                    'self_mute': False,
-                    'self_deaf': False
-                }
-            }
-
-            await self.ws.send(utils.to_json(payload))
+            if server.id in self.the_voice_clients:
+                return self.the_voice_clients[server.id]
 
             s_id = self.ws.wait_for('VOICE_STATE_UPDATE', lambda d: d.get('user_id') == self.user.id)
             _voice_data = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: True)
@@ -262,21 +248,22 @@ class MusicBot(discord.Client):
                 'main_ws': self.ws
             }
             voice_client = VoiceClient(**kwargs)
-            self.voice_clients[server.id] = voice_client
+            self.the_voice_clients[server.id] = voice_client
 
-
-            for x in range(3):
+            retries = 3
+            for x in range(retries):
                 try:
                     print("Attempting connection...")
                     await asyncio.wait_for(voice_client.connect(), timeout=10, loop=self.loop)
+                    print("Connection established.")
                     break
                 except:
-                    print("Failed to connect, retrying...")
+                    print("Failed to connect, retrying (%s/%s)..." % (x+1, retries))
                     await asyncio.sleep(1)
                     await self.ws.voice_state(server.id, None, self_mute=True)
                     await asyncio.sleep(1)
 
-                    if x == 2:
+                    if x == retries-1:
                         raise exceptions.HelpfulError(
                             "Cannot establish connection to voice chat.  "
                             "Something may be blocking outgoing UDP connections.",
@@ -298,13 +285,17 @@ class MusicBot(discord.Client):
         await self._update_voice_state(channel)
 
     async def disconnect_voice_client(self, server):
-        if server.id not in self.voice_clients:
+        if server.id not in self.the_voice_clients:
             return
 
         if server.id in self.players:
             self.players.pop(server.id).kill()
 
-        await self.voice_clients.pop(server.id).disconnect()
+        await self.the_voice_clients.pop(server.id).disconnect()
+
+    async def disconnect_all_voice_clients(self):
+        for vc in self.the_voice_clients.copy():
+            await self.disconnect_voice_client(self.the_voice_clients[vc].channel.server)
 
     async def _update_voice_state(self, channel, *, mute=False, deaf=False):
         if isinstance(channel, Object):
@@ -328,7 +319,7 @@ class MusicBot(discord.Client):
             }
 
             await self.ws.send(utils.to_json(payload))
-            self.voice_clients[server.id].channel = channel
+            self.the_voice_clients[server.id].channel = channel
 
     async def get_player(self, channel, create=False):
         server = channel.server
@@ -532,7 +523,7 @@ class MusicBot(discord.Client):
                 raise self.exit_signal
 
     async def logout(self):
-        for vc in self.voice_clients.values():
+        for vc in self.the_voice_clients.values():
             try:
                 await vc.disconnect()
             except:
@@ -1436,7 +1427,7 @@ class MusicBot(discord.Client):
         if not author.voice_channel:
             raise exceptions.CommandError('You are not in a voice channel!')
 
-        voice_client = self.voice_clients.get(channel.server.id, None)
+        voice_client = self.the_voice_clients.get(channel.server.id, None)
         if voice_client and voice_client.channel.server == author.voice_channel.server:
             await self.move_voice_client(author.voice_channel)
             return
@@ -1538,14 +1529,26 @@ class MusicBot(discord.Client):
         if player.is_stopped:
             raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
 
-        if not player.current_entry:  # Do more checks here to see
-            print("Either Something strange is happening or a song is downloading.  "
-                  "You might want to restart the bot if it doesn't start working.")
+        if not player.current_entry:
+            if player.playlist.peek():
+                if player.playlist.peek()._is_downloading:
+                    print(player.playlist.peek()._waiting_futures[0].__dict__)
+                    return Response("The next song (%s) is downloading, please wait." % player.playlist.peek())
+
+                elif player.playlist.peek().is_downloaded:
+                    print("The next song will be played shortly.  Please wait.")
+                else:
+                    print("Something odd is happening.  "
+                          "You might want to restart the bot if it doesn't start working.")
+            else:
+                print("Something strange is happening.  "
+                      "You might want to restart the bot if it doesn't start working.")
         
         if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
             player.current_entry.meta.get('author', False)
             if author.id == player.current_entry.meta['author'].id: #If person that requested the song skips, skip instantly
                 player.skip()  # check autopause stuff here
+                await self._manual_delete_check(message)
                 return
 
         if author.self_deaf == True or author.deaf == True:
@@ -1952,9 +1955,11 @@ class MusicBot(discord.Client):
         await self._manual_delete_check(message)
 
     async def cmd_restart(self):
+        await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal
 
     async def cmd_shutdown(self):
+        await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
     async def on_message(self, message):
@@ -2098,9 +2103,9 @@ class MusicBot(discord.Client):
             raise
 
         except Exception:
+            traceback.print_exc()
             if self.config.debug_mode:
                 await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
-            traceback.print_exc()
 
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
@@ -2129,10 +2134,6 @@ class MusicBot(discord.Client):
 
         moving = before == before.server.me
         auto_paused = self.server_specific_data[after.server]['auto_paused']
-
-        if auto_paused is None:
-            self.server_specific_data[after.server]['auto_paused'] = False
-            return
 
         player = await self.get_player(my_voice_channel)
 
