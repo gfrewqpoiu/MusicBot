@@ -1522,7 +1522,7 @@ class MusicBot(discord.Client):
         Shuffles the playlist.
         """
 
-        player.playlist.shuffle()
+        player.playlist.shuffle() #handled in player.py
 
         cards = [':spades:',':clubs:',':hearts:',':diamonds:']
         hand = await self.send_message(channel, ' '.join(cards))
