@@ -18,6 +18,7 @@ from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
 from random import choice, shuffle, randint
+#from random import choice, shuffle
 from collections import defaultdict
 
 from musicbot.playlist import Playlist
@@ -1549,7 +1550,7 @@ class MusicBot(discord.Client):
             if author.id == player.current_entry.meta['author'].id: #If person that requested the song skips, skip instantly
                 player.skip()  # check autopause stuff here
                 await self._manual_delete_check(message)
-                return
+                return #My method
 
         if author.self_deaf == True or author.deaf == True:
             return Response('You cannot use !skip while deafened',reply=True,delete_after=20)
@@ -1560,6 +1561,7 @@ class MusicBot(discord.Client):
 
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote
+
         num_voice = sum(1 for m in voice_channel.voice_members if not (
             m.deaf or m.self_deaf or m.id in [self.user.id]))
 
