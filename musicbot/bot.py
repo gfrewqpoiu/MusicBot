@@ -1553,7 +1553,13 @@ class MusicBot(discord.Client):
 
         if author.self_deaf == True or author.deaf == True:
             return Response('You cannot use !skip while deafened',reply=True,delete_after=20)
-            
+        #if author.id == self.config.owner_id or permissions.instaskip:
+        #    player.skip()  # check autopause stuff here
+        #    await self._manual_delete_check(message)
+        #    return
+
+        # TODO: ignore person if they're deaf or take them out of the list or something?
+        # Currently is recounted if they vote, deafen, then vote
         num_voice = sum(1 for m in voice_channel.voice_members if not (
             m.deaf or m.self_deaf or m.id in [self.user.id]))
 
