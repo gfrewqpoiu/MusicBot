@@ -1543,8 +1543,7 @@ class MusicBot(discord.Client):
             else:
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
-<<<<<<< HEAD
-        
+
         if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
             player.current_entry.meta.get('author', False)
             if author.id == player.current_entry.meta['author'].id: #If person that requested the song skips, skip instantly
@@ -1554,7 +1553,7 @@ class MusicBot(discord.Client):
 
         if author.self_deaf == True or author.deaf == True:
             return Response('You cannot use !skip while deafened',reply=True,delete_after=20)
-                    
+            
         num_voice = sum(1 for m in voice_channel.voice_members if not (
             m.deaf or m.self_deaf or m.id in [self.user.id]))
 
