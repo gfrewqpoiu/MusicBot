@@ -61,10 +61,6 @@ class Playlist(EventEmitter):
                 # unfortunately this is literally broken
                 # https://github.com/KeepSafe/aiohttp/issues/758
                 # https://github.com/KeepSafe/aiohttp/issues/852
-<<<<<<< HEAD
-
-=======
->>>>>>> SexualRhinoceros/review
                 content_type = await get_header(self.bot.session, info['url'], 'CONTENT-TYPE')
                 print("Got content type", content_type)
 
