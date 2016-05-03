@@ -53,6 +53,24 @@ class SkipState:
         self.skippers.add(skipper)
         self.skip_msgs.add(msg)
         return self.skip_count
+        
+class HypeState:
+    def __init__(self):
+        self.hypers = set()
+        self.hype_msgs = set()
+
+    @property
+    def hype_count(self):
+        return len(self.hypers)
+
+    def reset(self):
+        self.hypers.clear()
+        self.hype_msgs.clear()
+
+    def add_hyper(self, hyper, msg):
+        self.hypers.add(hyper)
+        self.hype_msgs.add(msg)
+        return self.hype_count
 
 
 class Response:
@@ -342,6 +360,7 @@ class MusicBot(discord.Client):
                 .on('entry-added', self.on_entry_added)
 
             player.skip_state = SkipState()
+            player.hype_state = HypeState()
             self.players[server.id] = player
 
         return self.players[server.id]
@@ -349,10 +368,12 @@ class MusicBot(discord.Client):
     async def on_play(self, player, entry):
         await self.update_now_playing(entry)
         player.skip_state.reset()
-
+        
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
-
+        totalhypes = player.hype_state.hype_count
+        
+        player.hype_state.reset()
         if channel and author:
             last_np_msg = self.server_specific_data[channel.server]['last_np_msg']
             if last_np_msg and last_np_msg.channel == channel:
@@ -1807,6 +1828,55 @@ class MusicBot(discord.Client):
             usr = user_mentions[0]
             return Response("%s have %s to eat from %s" % (usr.mention, choice(emoji), author.name))
 
+    async def cmd_hype(self, player, channel, author, message, permissions, voice_channel):
+        """
+        Usage:
+            {command_prefix}hype
+
+        Adds a Hype vote to the current song.
+        """
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't hype! The player is not playing!", expire_in=20)
+
+        if not player.current_entry:
+            if player.playlist.peek():
+                if player.playlist.peek()._is_downloading:
+                    print(player.playlist.peek()._waiting_futures[0].__dict__)
+                    return Response("The next song (%s) is downloading, please wait." % player.playlist.peek())
+
+                elif player.playlist.peek().is_downloaded:
+                    print("The next song will be played shortly.  Please wait.")
+                else:
+                    print("Something odd is happening.  "
+                          "You might want to restart the bot if it doesn't start working.")
+            else:
+                print("Something strange is happening.  "
+                      "You might want to restart the bot if it doesn't start working.")
+
+        if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
+            player.current_entry.meta.get('author', False)
+            if author.id == player.current_entry.meta['author'].id: #If person that requested the song skips, skip instantly
+                Response('You cannot hype your own songs!',reply=True,delete_after=30)
+                await self._manual_delete_check(message)
+                return
+
+        if author.self_deaf == True or author.deaf == True:
+            return Response('You cannot use !hype while deafened',reply=True,delete_after=20)
+            
+
+        num_hypes = player.hype_state.add_hyper(author.id, message)
+
+        return Response(
+                'your Hype for **{}** was acknowledged.'
+                '\nThe song now has **{}** Hypes.'.format(
+                    player.current_entry.title,
+                    num_hypes
+                ),
+                reply=True,
+                delete_after=20
+            )
+        
     async def cmd_next(self, channel, player):
         """
         Usage:
