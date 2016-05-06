@@ -1884,9 +1884,8 @@ class MusicBot(discord.Client):
         if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
             player.current_entry.meta.get('author', False)
             if author.id == player.current_entry.meta['author'].id: #If person that requested the song skips, skip instantly
-                Response('You cannot hype your own songs!',reply=True,delete_after=30)
                 await self._manual_delete_check(message)
-                return
+                return Response('You cannot hype your own songs!',reply=True,delete_after=30)
 
         if author.self_deaf == True or author.deaf == True:
             return Response('You cannot use !hype while deafened',reply=True,delete_after=20)
