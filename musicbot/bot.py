@@ -1682,10 +1682,22 @@ class MusicBot(discord.Client):
         if player.is_stopped:
             raise exceptions.CommandError("Can't skip! The player is not playing!")
 
-        if not player.current_entry:  # Do more checks here to see
-            print("Something strange is happening.  You might want to restart the bot if its not working.")
+        if not player.current_entry:
+            if player.playlist.peek():
+                if player.playlist.peek()._is_downloading:
+                    print(player.playlist.peek()._waiting_futures[0].__dict__)
+                    return Response("The next song (%s) is downloading, please wait." % player.playlist.peek().title)
 
-        player.skip()  # check autopause stuff here
+                elif player.playlist.peek().is_downloaded:
+                    print("The next song will be played shortly.  Please wait.")
+                else:
+                    print("Something odd is happening.  "
+                          "You might want to restart the bot if it doesn't start working.")
+            else:
+                print("Something strange is happening.  "
+                      "You might want to restart the bot if it doesn't start working.")
+        else: 
+            player.skip()  # check autopause stuff here
         return
             
     async def cmd_volume(self, message, player, new_volume=None):
