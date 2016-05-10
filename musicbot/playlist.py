@@ -7,7 +7,7 @@ import traceback
 
 from hashlib import md5
 from random import shuffle
-from itertools import islice
+from itertools import islice, filterfalse
 from collections import deque
 
 from .exceptions import ExtractionError, WrongEntryTypeError
@@ -92,19 +92,14 @@ class Playlist(EventEmitter):
         return entry, len(self.entries)
         
     async def afk(self, channel, afkler):
-        queue = self.entries.copy()
         hasrun = False
-        for i, item in enumerate(self, 1):
-            if item.meta.get('author', False):
-                if afkler == item.meta.get('author', False).id :
-                    queue.rotate(-i)
-                    queue.popleft()
-                    queue.rotate(i)
-                    print("Deleted 1 item")
-                    hasrun = True
-                    continue   
+        newqueue = [item for item in list(self.entries) if not item.idcheck(afkler)]
+        if len(newqueue) == len(self.entries):
+            hasrun = False
+        else:
+            hasrun = True    
         if hasrun:            
-            self.entries = queue
+            self.entries = deque(newqueue)
             
         return hasrun
         
@@ -306,6 +301,9 @@ class PlaylistEntry:
         self._waiting_futures = []
         self.download_folder = self.playlist.downloader.download_folder
 
+    async def idcheck(self, afkler):
+        return bool(self.meta.get(author.id) == afkler)
+        
     @property
     def is_downloaded(self):
         if self._is_downloading:
