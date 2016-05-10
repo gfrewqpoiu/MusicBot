@@ -1711,7 +1711,7 @@ class MusicBot(discord.Client):
 
         if not new_volume:
             return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True, delete_after=20)
-        if new_volume[0] == 0:
+        if new_volume[0] == '0':
             raise exceptions.CommandError('You cannot use {} as a volume. Use the pause command instead!'.format(new_volume), expire_in=20)
         relative = False
         if new_volume[0] in '+-':
