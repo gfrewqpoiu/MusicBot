@@ -1711,7 +1711,8 @@ class MusicBot(discord.Client):
 
         if not new_volume:
             return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True, delete_after=20)
-
+        if new_volume[0] == 0:
+            raise exceptions.CommandError('You cannot use {} as a volume. Use the pause command instead!'.format(new_volume), expire_in=20)
         relative = False
         if new_volume[0] in '+-':
             relative = True
@@ -1798,12 +1799,29 @@ class MusicBot(discord.Client):
         Removes the authors songs from the song queue.
         """
         afkler = author.id
-        result = await player.playlist.afk(channel, afkler)
+        result = await player.playlist.afk(channel, afkler) # Main code in playlist.py, waits for it to finish then continues.
         if result:
             return Response("Done, see you later!", reply=True, delete_after=30)
         else:
             return Response("Nothing queued from you, or error while running!", reply=True, delete_after=30)                
                     
+    async def cmd_afkother(self, channel, player, author, user_mentions):
+        """
+        Usage:
+            {command_prefix}afkother @User
+
+        Removes the mentioned users songs from the song queue.
+        """
+        if not user_mentions: #check for mention
+            return Response("You have to mention a user to remove songs for!", reply=True, delete_after=20)
+        usr = user_mentions[0]
+        afkler = usr.id
+        result = await player.playlist.afk(channel, afkler) #The main code has to be in playlist.py
+        if result:
+            return Response("Done, %s's songs were removed." % (usr.name), reply=True, delete_after=30)
+        else: #If it didn't run
+            return Response("Nothing queued from %s, or error while running!" % (usr.name), reply=True, delete_after=30)                
+
     async def cmd_food(self, author, user_mentions):
         """
         Usage:
