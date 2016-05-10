@@ -1790,6 +1790,20 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
         
+    async def cmd_afk(self, channel, player, author):
+        """
+        Usage:
+            {command_prefix}afk
+
+        Removes the authors songs from the song queue.
+        """
+        afkler = author.id
+        result = await player.playlist.afk(channel, afkler)
+        if result:
+            return Response("Done, see you later!", reply=True, delete_after=30)
+        else:
+            return Response("Nothing queued from you, or error while running!", reply=True, delete_after=30)                
+                    
     async def cmd_food(self, author, user_mentions):
         """
         Usage:

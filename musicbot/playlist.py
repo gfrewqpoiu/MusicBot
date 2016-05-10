@@ -34,7 +34,10 @@ class Playlist(EventEmitter):
 
     def clear(self):
         self.entries.clear()
-
+    
+    def delete_nth(self, n):
+        self.entries.remove(n)
+        
     async def add_entry(self, song_url, **meta):
         """
             Validates and adds a song_url to be played. This does not start the download of the song.
@@ -87,6 +90,24 @@ class Playlist(EventEmitter):
         )
         self._add_entry(entry)
         return entry, len(self.entries)
+        
+    async def afk(self, channel, afkler):
+        queue = self.entries.copy()
+        hasrun = False
+        for i, item in enumerate(self, 1):
+            if item.meta.get('author', False):
+                if afkler == item.meta.get('author', False).id :
+                    queue.rotate(-i)
+                    queue.popleft()
+                    queue.rotate(i)
+                    print("Deleted 1 item")
+                    hasrun = True
+                    continue   
+        if hasrun:            
+            self.entries = queue
+            
+        return hasrun
+        
 
     async def import_from(self, playlist_url, **meta):
         """
