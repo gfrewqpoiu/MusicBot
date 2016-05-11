@@ -301,8 +301,10 @@ class PlaylistEntry:
         self._waiting_futures = []
         self.download_folder = self.playlist.downloader.download_folder
 
-    async def idcheck(self, afkler):
-        return bool(self.meta.get(author.id) == afkler)
+    def idcheck(self, afkler):
+        author1 = self.meta['author'].id
+        author2 = afkler
+        return bool(author1 == author2)
         
     @property
     def is_downloaded(self):
