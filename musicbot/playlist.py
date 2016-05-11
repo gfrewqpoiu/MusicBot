@@ -7,7 +7,7 @@ import traceback
 
 from hashlib import md5
 from random import shuffle
-from itertools import islice, filterfalse
+from itertools import islice
 from collections import deque
 
 from .exceptions import ExtractionError, WrongEntryTypeError
@@ -35,9 +35,6 @@ class Playlist(EventEmitter):
     def clear(self):
         self.entries.clear()
     
-    def delete_nth(self, n):
-        self.entries.remove(n)
-        
     async def add_entry(self, song_url, **meta):
         """
             Validates and adds a song_url to be played. This does not start the download of the song.
@@ -92,12 +89,16 @@ class Playlist(EventEmitter):
         return entry, len(self.entries)
         
     async def afk(self, channel, afkler):
+        """
+        Removes the songs of the given ID from the queue.
+        """
         hasrun = False
         newqueue = [item for item in list(self.entries) if not item.idcheck(afkler)]
         if len(newqueue) == len(self.entries):
             hasrun = False
         else:
             hasrun = True    
+        
         if hasrun:            
             self.entries = deque(newqueue)
             
@@ -301,9 +302,12 @@ class PlaylistEntry:
         self._waiting_futures = []
         self.download_folder = self.playlist.downloader.download_folder
 
-    def idcheck(self, afkler):
+    def idcheck(self, idstr):
+        """
+            Checks whether the given ID equals the ID of the Item of the Playlist
+        """    
         author1 = self.meta['author'].id
-        author2 = afkler
+        author2 = idstr
         return bool(author1 == author2)
         
     @property
