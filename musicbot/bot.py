@@ -90,7 +90,7 @@ class MusicBot(discord.Client):
         self.voice_client_move_lock = asyncio.Lock()
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
-
+        self.whitelist = set(load_file(self.config.whitelist_file))
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
