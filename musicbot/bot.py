@@ -90,8 +90,8 @@ class MusicBot(discord.Client):
         self.voice_client_move_lock = asyncio.Lock()
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
-        self.whitelist = set(load_file(self.config.whitelist_file))
         self.blacklist = set(load_file(self.config.blacklist_file))
+        self.whitelist = set(load_file(self.config.whitelist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
@@ -642,6 +642,7 @@ class MusicBot(discord.Client):
         print("  Skip threshold: %s votes or %s%%" % (
             self.config.skips_required, self._fixg(self.config.skip_ratio_required * 100)))
         print("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
+        print("  Whitelist: " + ['Disabled', 'Enabled'][self.config.white_list_check])
         print("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
         print("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist])
         print("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
@@ -782,8 +783,16 @@ class MusicBot(discord.Client):
             self.blacklist.update(user.id for user in user_mentions)
 
             write_file(self.config.blacklist_file, self.blacklist)
+            
+            if user_id in self.whitelist:
+                self.whitelist.remove(user_id)
+                write_file(self.config.whitelist_file, self.whitelist)
+                return Response(
+                    'user has been added to the blacklist and removed from the whitelist',
+                    reply=True, delete_after=10
+                )
 
-            return Response(
+            else: return Response(
                 '%s users have been added to the blacklist' % (len(self.blacklist) - old_len),
                 reply=True, delete_after=10
             )
@@ -2231,6 +2240,11 @@ class MusicBot(discord.Client):
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
+            
+        if self.config.white_list_check and int(
+                message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
+            self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            return    
 
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
