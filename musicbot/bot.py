@@ -715,7 +715,6 @@ class MusicBot(discord.Client):
 
             helpmsg += ", ".join(commands)
             helpmsg += "```"
-            helpmsg += "https://github.com/gfrewqpoiu/MusicBot/wiki/Commands-list"
 
             return Response(helpmsg, reply=True, delete_after=60)
 
@@ -1931,7 +1930,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}next
-
         Prints the next song in the queue.
         """
 
