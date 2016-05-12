@@ -718,6 +718,41 @@ class MusicBot(discord.Client):
             #helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
 
             return Response(helpmsg, reply=True, delete_after=60)
+            
+    async def cmd_whitelist(self, message, option, username):
+        """
+        Usage:
+            {command_prefix}whitelist [ + | - | add | remove ] @UserName
+
+        Adds or removes the user to the whitelist.
+        When the whitelist is enabled, whitelisted users are permitted to use bot commands.
+        """
+
+        user_id = extract_user_id(username)
+        if not user_id:
+            raise exceptions.CommandError('Invalid user specified')
+
+        if option not in ['+', '-', 'add', 'remove']:
+            raise exceptions.CommandError(
+                'Invalid option "%s" specified, use +, -, add, or remove' % option, expire_in=20
+            )
+
+        if option in ['+', 'add']:
+            self.whitelist.add(user_id)
+            write_file(self.config.whitelist_file, self.whitelist)
+
+            return Response('user has been added to the whitelist', reply=True, delete_after=10)
+
+        else:
+            if user_id not in self.whitelist:
+                return Response('user is not in the whitelist', reply=True, delete_after=10)
+
+            else:
+                self.whitelist.remove(user_id)
+                write_file(self.config.whitelist_file, self.whitelist)
+
+                return Response('user has been removed from the whitelist', reply=True, delete_after=10)
+        
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
