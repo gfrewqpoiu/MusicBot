@@ -720,46 +720,57 @@ class MusicBot(discord.Client):
 
             return Response(helpmsg, reply=True, delete_after=60)
             
-    async def cmd_whitelist(self, message, option, username):
+    async def cmd_whitelist(self, message, user_mentions, option, something):
         """
         Usage:
-            {command_prefix}whitelist [ + | - | add | remove ] @UserName
-
-        Adds or removes the user to the whitelist.
-        When the whitelist is enabled, whitelisted users are permitted to use bot commands.
+            {command_prefix}whitelist [ + | - | add | remove ] @UserName [@UserName2 ...]
+        Add or remove users to the whitelist.
+        Only whitelisted users can run bot commands when enabled.
         """
 
-        user_id = extract_user_id(username)
-        if not user_id:
-            raise exceptions.CommandError('Invalid user specified')
+        if not user_mentions:
+            raise exceptions.CommandError("No users listed.", expire_in=20)
 
         if option not in ['+', '-', 'add', 'remove']:
             raise exceptions.CommandError(
                 'Invalid option "%s" specified, use +, -, add, or remove' % option, expire_in=20
             )
 
+        for user in user_mentions.copy():
+            if user.id == self.config.owner_id:
+                print("[Commands:Whitelist] The owner is always whitelisted.")
+                user_mentions.remove(user)
+
+        old_len = len(self.whitelist)
+
         if option in ['+', 'add']:
-            self.whitelist.add(user_id)
+            self.whitelist.update(user.id for user in user_mentions)
+
             write_file(self.config.whitelist_file, self.whitelist)
 
-            return Response('user has been added to the whitelist', reply=True, delete_after=10)
+            return Response(
+                '%s users have been added to the whitelist' % (len(self.whitelist) - old_len),
+                reply=True, delete_after=10
+            )
 
         else:
-            if user_id not in self.whitelist:
-                return Response('user is not in the whitelist', reply=True, delete_after=10)
+            if self.whitelist.isdisjoint(user.id for user in user_mentions):
+                return Response('none of those users are in the whitelist.', reply=True, delete_after=10)
 
             else:
-                self.whitelist.remove(user_id)
+                self.whitelist.difference_update(user.id for user in user_mentions)
                 write_file(self.config.whitelist_file, self.whitelist)
 
-                return Response('user has been removed from the whitelist', reply=True, delete_after=10)
-        
+                return Response(
+                    '%s users have been removed from the whitelist' % (old_len - len(self.whitelist)),
+                    reply=True, delete_after=10
+                )
+
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
         Usage:
             {command_prefix}blacklist [ + | - | add | remove ] @UserName [@UserName2 ...]
-
         Add or remove users to the blacklist.
         Blacklisted users are forbidden from using bot commands.
         """
@@ -783,16 +794,8 @@ class MusicBot(discord.Client):
             self.blacklist.update(user.id for user in user_mentions)
 
             write_file(self.config.blacklist_file, self.blacklist)
-            
-            if user_id in self.whitelist:
-                self.whitelist.remove(user_id)
-                write_file(self.config.whitelist_file, self.whitelist)
-                return Response(
-                    'user has been added to the blacklist and removed from the whitelist',
-                    reply=True, delete_after=10
-                )
 
-            else: return Response(
+            return Response(
                 '%s users have been added to the blacklist' % (len(self.blacklist) - old_len),
                 reply=True, delete_after=10
             )
@@ -809,7 +812,7 @@ class MusicBot(discord.Client):
                     '%s users have been removed from the blacklist' % (old_len - len(self.blacklist)),
                     reply=True, delete_after=10
                 )
-
+                
     async def cmd_id(self, author, user_mentions):
         """
         Usage:
@@ -2241,8 +2244,7 @@ class MusicBot(discord.Client):
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
             
-        if self.config.white_list_check and int(
-                message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
+        if self.config.white_list_check and int(message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
             self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return    
 
