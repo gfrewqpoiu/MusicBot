@@ -683,62 +683,77 @@ class MusicBot(discord.Client):
         print()
         # t-t-th-th-that's all folks!
 
-    async def cmd_help(self):
+    async def cmd_help(self, command=None):
         """
         Usage:
-            {command_prefix}help
+            {command_prefix}help [command]
 
-        Prints a help message
+        Prints a help message.
+        If a command is specified, it prints a help message for that command.
+        Otherwise, it lists the available commands.
         """
 
-        helpmsg = "**Commands**\n```"
-        commands = []
+        if command:
+            cmd = getattr(self, 'cmd_' + command, None)
+            if cmd:
+                return Response(
+                    "```\n{}```".format(
+                        dedent(cmd.__doc__),
+                        command_prefix=self.config.command_prefix
+                    ),
+                    delete_after=60
+                )
+            else:
+                return Response("No such command", delete_after=10)
 
-        # TODO: Get this to format nicely
-        for att in dir(self):
-            if att.startswith('cmd_') and att != 'cmd_help':
-                command_name = att.replace('cmd_', '').lower()
-                commands.append("{}{}".format(self.config.command_prefix, command_name))
+        else:
+            helpmsg = "**Commands**\n```"
+            commands = []
 
-        helpmsg += ", ".join(commands)
-        helpmsg += "```"
-        helpmsg += "https://github.com/gfrewqpoiu/MusicBot/wiki/Commands-list"
+            for att in dir(self):
+                if att.startswith('cmd_') and att != 'cmd_help':
+                    command_name = att.replace('cmd_', '').lower()
+                    commands.append("{}{}".format(self.config.command_prefix, command_name))
 
-        return Response(helpmsg, reply=True, delete_after=60)
+            helpmsg += ", ".join(commands)
+            helpmsg += "```"
+            helpmsg += "https://github.com/gfrewqpoiu/MusicBot/wiki/Commands-list"
 
-    #async def cmd_whitelist(self, message, option, username):
-    #    """
-    #    Usage:
-    #        {command_prefix}whitelist [ + | - | add | remove ] @UserName
+            return Response(helpmsg, reply=True, delete_after=60)
 
-    #    Adds or removes the user to the whitelist.
-    #    When the whitelist is enabled, whitelisted users are permitted to use bot commands.
-    #    """
+    async def cmd_whitelist(self, message, option, username):
+        """
+        Usage:
+            {command_prefix}whitelist [ + | - | add | remove ] @UserName
 
-    #   user_id = extract_user_id(username)
-    #    if not user_id:
-    #        raise exceptions.CommandError('Invalid user specified')
+        Adds or removes the user to the whitelist.
+        When the whitelist is enabled, whitelisted users are permitted to use bot commands.
+        """
 
-    #    if option not in ['+', '-', 'add', 'remove']:
-    #        raise exceptions.CommandError(
-    #            'Invalid option "%s" specified, use +, -, add, or remove' % option, expire_in=20
-    #        )
+       user_id = extract_user_id(username)
+        if not user_id:
+            raise exceptions.CommandError('Invalid user specified')
 
-    #    if option in ['+', 'add']:
-    #        self.whitelist.add(user_id)
-    #        write_file(self.config.whitelist_file, self.whitelist)
+        if option not in ['+', '-', 'add', 'remove']:
+            raise exceptions.CommandError(
+                'Invalid option "%s" specified, use +, -, add, or remove' % option, expire_in=20
+            )
 
-    #        return Response('user has been added to the whitelist', reply=True, delete_after=10)
+        if option in ['+', 'add']:
+            self.whitelist.add(user_id)
+            write_file(self.config.whitelist_file, self.whitelist)
 
-    #    else:
-    #        if user_id not in self.whitelist:
-    #            return Response('user is not in the whitelist', reply=True, delete_after=10)
+            return Response('user has been added to the whitelist', reply=True, delete_after=10)
 
-    #        else:
-    #            self.whitelist.remove(user_id)
-    #            write_file(self.config.whitelist_file, self.whitelist)
+        else:
+            if user_id not in self.whitelist:
+                return Response('user is not in the whitelist', reply=True, delete_after=10)
 
-    #            return Response('user has been removed from the whitelist', reply=True, delete_after=10)
+            else:
+                self.whitelist.remove(user_id)
+                write_file(self.config.whitelist_file, self.whitelist)
+
+                return Response('user has been removed from the whitelist', reply=True, delete_after=10)
 
     async def cmd_blacklist(self, message, option, username):
         """
@@ -760,31 +775,43 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(
                 'Invalid option "%s" specified, use +, -, add, or remove' % option, expire_in=20
             )
+        for user in user_mentions.copy():
+            if user.id == self.config.owner_id:
+                print("[Commands:Blacklist] The owner cannot be blacklisted.")
+                user_mentions.remove(user)
+
+        old_len = len(self.blacklist)
 
         if option in ['+', 'add']:
-            self.blacklist.add(user_id)
+
+            if user_id in self.whitelist:
+                self.whitelist.remove(user_id)
+                write_file(self.config.whitelist_file, self.whitelist)
+                return Response(
+                    'user has been added to the blacklist and removed from the whitelist',
+                    reply=True, delete_after=10
+                )
+                
+            self.blacklist.update(user.id for user in user_mentions)        
             write_file(self.config.blacklist_file, self.blacklist)
 
-        #    if user_id in self.whitelist:
-        #        self.whitelist.remove(user_id)
-        #        write_file(self.config.whitelist_file, self.whitelist)
-        #        return Response(
-        #            'user has been added to the blacklist and removed from the whitelist',
-        #            reply=True, delete_after=10
-        #        )
-
-            else:
-                return Response('user has been added to the blacklist', reply=True, delete_after=10)
+            return Response(
+                '%s users have been added to the blacklist' % (len(self.blacklist) - old_len),
+                reply=True, delete_after=10
+            )
 
         else:
-            if user_id not in self.blacklist:
-                return Response('user is not in the blacklist', reply=True, delete_after=10)
+            if self.blacklist.isdisjoint(user.id for user in user_mentions):
+                return Response('none of those users are in the blacklist.', reply=True, delete_after=10)
 
             else:
-                self.blacklist.remove(user_id)
+                self.blacklist.difference_update(user.id for user in user_mentions)
                 write_file(self.config.blacklist_file, self.blacklist)
 
-                return Response('user has been removed from the blacklist', reply=True, delete_after=10)
+                return Response(
+                    '%s users have been removed from the blacklist' % (old_len - len(self.blacklist)),
+                    reply=True, delete_after=10
+                )
 
     async def cmd_id(self, author, user_mentions):
         """
@@ -1995,7 +2022,7 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=60)
 
-    async def cmd_clean(self, message, channel, author, search_range=50):
+    async def cmd_clean(self, message, channel, server, author, search_range=50):
         """
         Usage:
             {command_prefix}clean [range]
@@ -2016,29 +2043,42 @@ class MusicBot(discord.Client):
                 entry.content.startswith(prefix) for prefix in [self.config.command_prefix])  # can be expanded
             return valid_call and not entry.content[1:2].isspace()
 
-        msgs = 0
         delete_invokes = True
         delete_all = channel.permissions_for(author).manage_messages or self.config.owner_id == author.id
 
+        def check(message):
+            if is_possible_command_invoke(message) and delete_invokes:
+                return delete_all or message.author == author
+            return message.author == self.user
+
+        if self.user.bot:
+            if channel.permissions_for(server.me).manage_messages:
+                deleted = await self.purge_from(channel, check=check, limit=search_range, before=message)
+                return Response('Cleaned up {} message{}.'.format(len(deleted), 's' * bool(deleted)), delete_after=15)
+
+        deleted = 0
         async for entry in self.logs_from(channel, search_range, before=message):
             if entry == self.server_specific_data[channel.server]['last_np_msg']:
                 continue
 
             if entry.author == self.user:
                 await self.safe_delete_message(entry)
+                deleted += 1
                 await asyncio.sleep(0.21)
-                msgs += 1
 
             if is_possible_command_invoke(entry) and delete_invokes:
                 if delete_all or entry.author == author:
                     try:
                         await self.delete_message(entry)
                         await asyncio.sleep(0.21)
-                        msgs += 1
+                        deleted += 1
+
                     except discord.Forbidden:
                         delete_invokes = False
+                    except discord.HTTPException:
+                        pass
 
-        return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=15)
+        return Response('Cleaned up {} message{}.'.format(deleted, 's' * bool(deleted)), delete_after=15)
 
     async def cmd_pldump(self, channel, song_url):
         """
@@ -2205,10 +2245,10 @@ class MusicBot(discord.Client):
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
 
-        #elif self.config.white_list_check and int(
-        #        message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
-        #    self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
-        #    return
+        if self.config.white_list_check and int(
+                message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
+            self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            return
 
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
