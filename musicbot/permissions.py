@@ -8,7 +8,7 @@ from discord import User as discord_User
 class PermissionsDefaults:
     perms_file = 'config/permissions.ini'
 
-    CommandWhiteList = set()
+    #CommandWhiteList = set()
     CommandBlackList = set()
     IgnoreNonVoice = set()
     GrantToRoles = set()
@@ -89,7 +89,7 @@ class PermissionGroup:
     def __init__(self, name, section_data):
         self.name = name
 
-        self.command_whitelist = section_data.get('CommandWhiteList', fallback=PermissionsDefaults.CommandWhiteList)
+        #self.command_whitelist = section_data.get('CommandWhiteList', fallback=PermissionsDefaults.CommandWhiteList)
         self.command_blacklist = section_data.get('CommandBlackList', fallback=PermissionsDefaults.CommandBlackList)
         self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=PermissionsDefaults.IgnoreNonVoice)
         self.granted_to_roles = section_data.get('GrantToRoles', fallback=PermissionsDefaults.GrantToRoles)
@@ -105,8 +105,8 @@ class PermissionGroup:
         self.validate()
 
     def validate(self):
-        if self.command_whitelist:
-            self.command_whitelist = set(self.command_whitelist.lower().split())
+        #if self.command_whitelist:
+        #    self.command_whitelist = set(self.command_whitelist.lower().split())
 
         if self.command_blacklist:
             self.command_blacklist = set(self.command_blacklist.lower().split())

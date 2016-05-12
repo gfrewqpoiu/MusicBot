@@ -92,7 +92,7 @@ class MusicBot(discord.Client):
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
         self.blacklist = set(load_file(self.config.blacklist_file))
-        self.whitelist = set(load_file(self.config.whitelist_file))
+        #self.whitelist = set(load_file(self.config.whitelist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
@@ -642,7 +642,7 @@ class MusicBot(discord.Client):
         print("  Default volume: %s%%" % int(self.config.default_volume * 100))
         print("  Skip threshold: %s votes or %s%%" % (
             self.config.skips_required, self._fixg(self.config.skip_ratio_required * 100)))
-        print("  Whitelist: " + ['Disabled', 'Enabled'][self.config.white_list_check])
+        #print("  Whitelist: " + ['Disabled', 'Enabled'][self.config.white_list_check])
         print("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
         print("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
         print("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist])
@@ -706,39 +706,39 @@ class MusicBot(discord.Client):
 
         return Response(helpmsg, reply=True, delete_after=60)
 
-    async def cmd_whitelist(self, message, option, username):
-        """
-        Usage:
-            {command_prefix}whitelist [ + | - | add | remove ] @UserName
+    #async def cmd_whitelist(self, message, option, username):
+    #    """
+    #    Usage:
+    #        {command_prefix}whitelist [ + | - | add | remove ] @UserName
 
-        Adds or removes the user to the whitelist.
-        When the whitelist is enabled, whitelisted users are permitted to use bot commands.
-        """
+    #    Adds or removes the user to the whitelist.
+    #    When the whitelist is enabled, whitelisted users are permitted to use bot commands.
+    #    """
 
-        user_id = extract_user_id(username)
-        if not user_id:
-            raise exceptions.CommandError('Invalid user specified')
+    #   user_id = extract_user_id(username)
+    #    if not user_id:
+    #        raise exceptions.CommandError('Invalid user specified')
 
-        if option not in ['+', '-', 'add', 'remove']:
-            raise exceptions.CommandError(
-                'Invalid option "%s" specified, use +, -, add, or remove' % option, expire_in=20
-            )
+    #    if option not in ['+', '-', 'add', 'remove']:
+    #        raise exceptions.CommandError(
+    #            'Invalid option "%s" specified, use +, -, add, or remove' % option, expire_in=20
+    #        )
 
-        if option in ['+', 'add']:
-            self.whitelist.add(user_id)
-            write_file(self.config.whitelist_file, self.whitelist)
+    #    if option in ['+', 'add']:
+    #        self.whitelist.add(user_id)
+    #        write_file(self.config.whitelist_file, self.whitelist)
 
-            return Response('user has been added to the whitelist', reply=True, delete_after=10)
+    #        return Response('user has been added to the whitelist', reply=True, delete_after=10)
 
-        else:
-            if user_id not in self.whitelist:
-                return Response('user is not in the whitelist', reply=True, delete_after=10)
+    #    else:
+    #        if user_id not in self.whitelist:
+    #            return Response('user is not in the whitelist', reply=True, delete_after=10)
 
-            else:
-                self.whitelist.remove(user_id)
-                write_file(self.config.whitelist_file, self.whitelist)
+    #        else:
+    #            self.whitelist.remove(user_id)
+    #            write_file(self.config.whitelist_file, self.whitelist)
 
-                return Response('user has been removed from the whitelist', reply=True, delete_after=10)
+    #            return Response('user has been removed from the whitelist', reply=True, delete_after=10)
 
     async def cmd_blacklist(self, message, option, username):
         """
@@ -765,13 +765,13 @@ class MusicBot(discord.Client):
             self.blacklist.add(user_id)
             write_file(self.config.blacklist_file, self.blacklist)
 
-            if user_id in self.whitelist:
-                self.whitelist.remove(user_id)
-                write_file(self.config.whitelist_file, self.whitelist)
-                return Response(
-                    'user has been added to the blacklist and removed from the whitelist',
-                    reply=True, delete_after=10
-                )
+        #    if user_id in self.whitelist:
+        #        self.whitelist.remove(user_id)
+        #        write_file(self.config.whitelist_file, self.whitelist)
+        #        return Response(
+        #            'user has been added to the blacklist and removed from the whitelist',
+        #            reply=True, delete_after=10
+        #        )
 
             else:
                 return Response('user has been added to the blacklist', reply=True, delete_after=10)
@@ -2205,10 +2205,10 @@ class MusicBot(discord.Client):
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
 
-        elif self.config.white_list_check and int(
-                message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
-            self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
-            return
+        #elif self.config.white_list_check and int(
+        #        message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
+        #    self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+        #    return
 
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
