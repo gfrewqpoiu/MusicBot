@@ -703,7 +703,6 @@ class MusicBot(discord.Client):
                 )
             else:
                 return Response("No such command", delete_after=10)
-
         else:
             helpmsg = "**Commands**\n```"
             commands = []
@@ -1960,7 +1959,7 @@ class MusicBot(discord.Client):
                 unlisted += 1
                 z = z + 1
 
-            lines.append(nextline)
+            lines.append(nextline) #keep this
 
         if unlisted:
             lines.append('\n*... and %s more*' % unlisted)
