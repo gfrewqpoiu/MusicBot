@@ -4,11 +4,6 @@ import traceback
 import configparser
 
 from .exceptions import HelpfulError
-<<<<<<< HEAD
-=======
-
-
->>>>>>> SexualRhinoceros/review
 class Config:
     def __init__(self, config_file):
         self.config_file = config_file
@@ -183,10 +178,7 @@ class ConfigDefaults:
     autojoin_channels = set()
 
     default_volume = 0.15
-<<<<<<< HEAD
     white_list_check = False #whitelist is needed
-=======
->>>>>>> SexualRhinoceros/review
     skips_required = 4
     skip_ratio_required = 0.5
     save_videos = True
@@ -200,10 +192,7 @@ class ConfigDefaults:
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
-<<<<<<< HEAD
     whitelist_file = 'config/whitelist.txt' #here is the file stored
-=======
->>>>>>> SexualRhinoceros/review
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
