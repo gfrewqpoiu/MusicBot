@@ -5,8 +5,6 @@ import configparser
 
 from .exceptions import HelpfulError
 
-
-
 class Config:
     def __init__(self, config_file):
         self.config_file = config_file
@@ -181,7 +179,7 @@ class ConfigDefaults:
     autojoin_channels = set()
 
     default_volume = 0.15
-    white_list_check = False
+    white_list_check = False #whitelist is needed
     skips_required = 4
     skip_ratio_required = 0.5
     save_videos = True
@@ -195,7 +193,7 @@ class ConfigDefaults:
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
-    whitelist_file = 'config/whitelist.txt'
+    whitelist_file = 'config/whitelist.txt' #here is the file stored
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
