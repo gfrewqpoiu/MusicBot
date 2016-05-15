@@ -34,7 +34,7 @@ class Playlist(EventEmitter):
 
     def clear(self):
         self.entries.clear()
-
+    
     async def add_entry(self, song_url, **meta):
         """
             Validates and adds a song_url to be played. This does not start the download of the song.
@@ -62,7 +62,7 @@ class Playlist(EventEmitter):
                 # unfortunately this is literally broken
                 # https://github.com/KeepSafe/aiohttp/issues/758
                 # https://github.com/KeepSafe/aiohttp/issues/852
-                content_type = await get_header(self.bot.session, info['url'], 'CONTENT-TYPE')
+                content_type = await get_header(self.bot.aiosession, info['url'], 'CONTENT-TYPE')
                 print("Got content type", content_type)
 
             except Exception as e:
@@ -87,6 +87,23 @@ class Playlist(EventEmitter):
         )
         self._add_entry(entry)
         return entry, len(self.entries)
+        
+    async def afk(self, channel, afkler):
+        """
+        Removes the songs of the given ID from the queue.
+        """
+        hasrun = False
+        newqueue = [item for item in list(self.entries) if not item.idcheck(afkler)]
+        if len(newqueue) == len(self.entries):
+            hasrun = False
+        else:
+            hasrun = True    
+        
+        if hasrun:            
+            self.entries = deque(newqueue)
+            
+        return hasrun
+        
 
     async def import_from(self, playlist_url, **meta):
         """
@@ -285,6 +302,14 @@ class PlaylistEntry:
         self._waiting_futures = []
         self.download_folder = self.playlist.downloader.download_folder
 
+    def idcheck(self, idstr):
+        """
+            Checks whether the given ID equals the ID of the Item of the Playlist
+        """    
+        author1 = self.meta['author'].id
+        author2 = idstr
+        return bool(author1 == author2)
+        
     @property
     def is_downloaded(self):
         if self._is_downloading:
@@ -355,7 +380,7 @@ class PlaylistEntry:
 
                 if expected_fname_noex in flistdir:
                     try:
-                        rsize = int(await get_header(self.playlist.bot.session, self.url, 'CONTENT-LENGTH'))
+                        rsize = int(await get_header(self.playlist.bot.aiosession, self.url, 'CONTENT-LENGTH'))
                     except:
                         rsize = 0
 
