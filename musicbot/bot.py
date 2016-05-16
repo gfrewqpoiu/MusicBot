@@ -480,6 +480,10 @@ class MusicBot(discord.Client):
                 game = discord.Game(name="music on %s servers" % activeplayers)
                 entry = None
 
+            elif activeplayers == 1:
+                player = discord.utils.get(self.players.values(), is_playing=True)
+                entry = player.current_entry
+
         if entry:
             prefix = u'\u275A\u275A ' if is_paused else ''
 
@@ -2322,7 +2326,7 @@ class MusicBot(discord.Client):
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
-        if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
+        if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
             
