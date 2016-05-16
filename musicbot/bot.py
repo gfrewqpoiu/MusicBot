@@ -2330,7 +2330,7 @@ class MusicBot(discord.Client):
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
             
-        if self.config.white_list_check and int(message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
+        if self.config.white_list_check and message.author.id not in self.whitelist and message.author.id != self.config.owner_id:
             self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return    
 
