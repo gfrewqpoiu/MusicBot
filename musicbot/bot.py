@@ -326,12 +326,8 @@ class MusicBot(discord.Client):
         await asyncio.sleep(0.1)
 
         if player:
-            player.voice_client = await self.get_voice_client(vc.channel)
-
-            if player._current_player:
-                player._current_player.player = player.voice_client.play_audio
-                player._current_player._resumed.clear()
-                player._current_player._connected.set()
+            new_vc = await self.get_voice_client(vc.channel)
+            player.reload_voice(new_vc)
 
             if player.is_paused and _paused:
                 player.resume()
@@ -479,6 +475,10 @@ class MusicBot(discord.Client):
             if activeplayers > 1:
                 game = discord.Game(name="music on %s servers" % activeplayers)
                 entry = None
+
+            elif activeplayers == 1:
+                player = discord.utils.get(self.players.values(), is_playing=True)
+                entry = player.current_entry
 
         if entry:
             prefix = u'\u275A\u275A ' if is_paused else ''
@@ -644,11 +644,42 @@ class MusicBot(discord.Client):
         print()
 
         if self.config.bound_channels:
+            chlist = set(self.get_channel(i) for i in self.config.bound_channels if i)
+            invalids = set()
+
+            invalids.update(c for c in chlist if c.type == discord.ChannelType.voice)
+            chlist.difference_update(invalids)
+            self.config.bound_channels.difference_update(invalids)
+
             print("Bound to text channels:")
-            chlist = [self.get_channel(i) for i in self.config.bound_channels if i]
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+
+            if invalids and self.config.debug_mode:
+                print("Not binding to voice channels:")
+                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+
+            print()
+
         else:
             print("Not bound to any text channels")
+
+        if self.config.autojoin_channels:
+            chlist = set(self.get_channel(i) for i in self.config.autojoin_channels if i)
+            invalids = set()
+
+            invalids.update(c for c in chlist if c.type == discord.ChannelType.voice)
+            chlist.difference_update(invalids)
+            self.config.autojoin_channels.difference_update(invalids)
+
+            print("Autojoining voice chanels:")
+            [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+
+            if invalids and self.config.debug_mode:
+                print("Cannot join text channels:")
+                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+
+        else:
+            print("Not autojoining any voice channels")
 
         print()
         print("Options:")
@@ -2322,11 +2353,11 @@ class MusicBot(discord.Client):
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
-        if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
+        if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
             
-        if self.config.white_list_check and int(message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
+        if self.config.white_list_check and message.author.id not in self.whitelist and message.author.id != self.config.owner_id:
             self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return    
 
@@ -2430,7 +2461,16 @@ class MusicBot(discord.Client):
 
         except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError) as e:
             print("{0.__class__}: {0.message}".format(e))
-            await self.safe_send_message(message.channel, '```\n%s\n```' % e.message, expire_in=e.expire_in)
+
+            expirein = e.expire_in if self.config.delete_messages else None
+            alsodelete = message if self.config.delete_invoking else None
+
+            await self.safe_send_message(
+                message.channel,
+                '```\n%s\n```' % e.message,
+                expire_in=expirein,
+                also_delete=alsodelete
+            )
 
         except exceptions.Signal:
             raise
