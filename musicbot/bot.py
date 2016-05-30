@@ -369,6 +369,7 @@ class MusicBot(discord.Client):
 
     async def get_player(self, channel, create=False) -> MusicPlayer:
         server = channel.server
+        txtchannel = channel
 
         if server.id not in self.players:
             if not create:
@@ -438,6 +439,11 @@ class MusicBot(discord.Client):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             while self.autoplaylist:
                 song_url = choice(self.autoplaylist)
+                if song_url in player.playlist.recent_songs:
+                    print("Saved your ears from a repeat from the auto playlist")
+                    await self.on_finished_playing(player, **_)
+                    break
+
                 info = await self.downloader.safe_extract_info(player.playlist.loop, song_url, download=False, process=False)
 
                 if not info:
@@ -456,7 +462,7 @@ class MusicBot(discord.Client):
                 except exceptions.ExtractionError as e:
                     print("Error adding song from autoplaylist:", e)
                     continue
-
+                player.playlist.add_recent(song_url)
                 break
 
             if not self.autoplaylist:
