@@ -369,7 +369,6 @@ class MusicBot(discord.Client):
 
     async def get_player(self, channel, create=False) -> MusicPlayer:
         server = channel.server
-        txtchannel = channel
 
         if server.id not in self.players:
             if not create:
