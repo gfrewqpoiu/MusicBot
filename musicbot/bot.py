@@ -99,6 +99,7 @@ class MusicBot(discord.Client):
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
+        self.undo = False
         self.exit_signal = None
 
         if not self.autoplaylist:
@@ -1127,7 +1128,7 @@ class MusicBot(discord.Client):
                 time_until = ''
 
             reply_text %= (btext, position, time_until)
-
+        self.undo = True
         return Response(reply_text, delete_after=30)
 
     async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
@@ -1320,7 +1321,7 @@ class MusicBot(discord.Client):
                 time_until = ''
 
             reply_text %= (btext, position, time_until)
-
+        self.undo = True
         return Response(reply_text, delete_after=30)
 
     async def _cmd_play_playlist_async(self, player, channel, author, permissions, playlist_url, extractor_type):
@@ -1537,7 +1538,7 @@ class MusicBot(discord.Client):
                 await self.safe_delete_message(response_message)
 
                 await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
-
+                self.undo = True
                 return Response("Alright, coming right up!", delete_after=30)
             else:
                 await self.safe_delete_message(result_message)
@@ -1679,6 +1680,21 @@ class MusicBot(discord.Client):
         player.playlist.clear()
         return Response(':put_litter_in_its_place:', delete_after=20)
 
+    async def cmd_undo(self, player, author):
+        """
+        Usage:
+            {command_prefix}undo
+
+        Undo the last song queued.
+        """
+
+        if self.undo == False:
+            return Response('No new song was added recently.', delete_after=20)
+        else:
+            self.undo = False
+            player.playlist.undo()
+            return Response('Removed last song.', delete_after=20)
+
     async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
         """
         Usage:
@@ -1783,7 +1799,15 @@ class MusicBot(discord.Client):
         else: 
             player.skip()  # check autopause stuff here
         return
-            
+
+    async def cmd_remove(self, message, player, index=None):
+        """
+        Usage:
+            {command_prefix}remove [index] Removes song at the specified place in the queue
+        """
+        player.playlist.remove(int(index)-1)
+        return Response('Removed.', delete_after=20)
+                    
     async def cmd_volume(self, message, player, new_volume=None):
         """
         Usage:

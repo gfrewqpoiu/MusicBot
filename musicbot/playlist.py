@@ -36,6 +36,12 @@ class Playlist(EventEmitter):
     def clear(self):
         self.entries.clear()
 
+    def undo(self):
+        self.entries.pop()
+
+    def remove(self, index):
+        del self.entries[index]
+        
     def add_recent(self, song_url):
         if len(self.recent_songs) < 20:
             self.recent_songs.append(song_url)
