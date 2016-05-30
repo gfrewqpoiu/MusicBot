@@ -1283,10 +1283,11 @@ class MusicBot(discord.Client):
                     "Song duration exceeds limit (%s > %s)" % (info['duration'], permissions.max_song_length),
                     expire_in=30
                 )
-
+            if song_url in player.playlist.recent_songs:
+                return Response("The Song was already added recently, please queue something different", reply=True, delete_after=30)
             try:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
-
+                
             except exceptions.WrongEntryTypeError as e:
                 if e.use_url == song_url:
                     print("[Warning] Determined incorrect entry type, but suggested url is the same.  Help.")
@@ -1296,7 +1297,8 @@ class MusicBot(discord.Client):
                     print("[Info] Using \"%s\" instead" % e.use_url)
 
                 return await self.cmd_play(player, channel, author, permissions, leftover_args, e.use_url)
-
+            
+            player.playlist.add_recent(song_url)
             reply_text = "Enqueued **%s** to be played. Position in queue: %s"
             btext = entry.title
 

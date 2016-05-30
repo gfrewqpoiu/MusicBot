@@ -25,6 +25,7 @@ class Playlist(EventEmitter):
         self.loop = bot.loop
         self.downloader = bot.downloader
         self.entries = deque()
+        self.recent_songs = deque()
 
     def __iter__(self):
         return iter(self.entries)
@@ -34,7 +35,19 @@ class Playlist(EventEmitter):
 
     def clear(self):
         self.entries.clear()
-    
+
+    def add_recent(self, song_url):
+        if len(self.recent_songs) < 20:
+            self.recent_songs.append(song_url)
+        else:
+            while len(self.recent_songs) >= 20:
+                self.recent_songs.popleft()
+
+            self.add_recent(song_url)
+
+    def clear_recent(self):
+        self.recent_songs.clear()
+
     async def add_entry(self, song_url, **meta):
         """
             Validates and adds a song_url to be played. This does not start the download of the song.
@@ -244,7 +257,7 @@ class Playlist(EventEmitter):
         self.emit('entry-added', playlist=self, entry=entry)
 
         if self.peek() is entry:
-            entry.get_ready_future()
+            entry.get_ready_future()   
 
     async def get_next_entry(self, predownload_next=True):
         """

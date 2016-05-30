@@ -94,7 +94,7 @@ class MusicPlayer(EventEmitter):
         self.voice_client = voice_client
         self.playlist = playlist
         self.playlist.on('entry-added', self.on_entry_added)
-        self.recent_songs = deque()
+        self.recent_songs = playlist.recent_songs
         self._volume = bot.config.default_volume
 
         self._play_lock = asyncio.Lock()
