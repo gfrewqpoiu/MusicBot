@@ -19,7 +19,7 @@ from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
 from random import choice, shuffle, randint
-from collections import defaultdict, deque
+from collections import defaultdict
 
 from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
