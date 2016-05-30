@@ -19,7 +19,7 @@ from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
 from random import choice, shuffle, randint
-from collections import defaultdict
+from collections import defaultdict, deque
 
 from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
@@ -54,7 +54,7 @@ class SkipState:
         self.skippers.add(skipper)
         self.skip_msgs.add(msg)
         return self.skip_count
-        
+
 class HypeState:
     def __init__(self):
         self.hypers = set()
@@ -396,11 +396,12 @@ class MusicBot(discord.Client):
     async def on_play(self, player, entry):
         await self.update_now_playing(entry)
         player.skip_state.reset()
-        
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
         totalhypes = player.hype_state.hype_count
-        
+        totalhypemsg = 'The previous song got %s Hypes' % (totalhypes)
+        if channel:
+            await self.safe_send_message(channel, totalhypemsg, expire_in=30)
         player.hype_state.reset()
         if channel and author:
             last_np_msg = self.server_specific_data[channel.server]['last_np_msg']
@@ -1140,7 +1141,6 @@ class MusicBot(discord.Client):
             raise exceptions.PermissionsError(
                 "You have reached your playlist item limit (%s)" % permissions.max_songs, expire_in=30
             )
-
         await self.send_typing(channel)
 
         if leftover_args:
