@@ -1,6 +1,5 @@
 import os
 import shutil
-import traceback
 import configparser
 
 from .exceptions import HelpfulError
@@ -43,7 +42,7 @@ class Config:
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
 
-        confsections = {"Credentials", "Permissions", "Chat", "MusicBot"}.difference(config.sections())
+        confsections = {"Credentials", "Permissions", "Chat", "MusicBot", "Logging"}.difference(config.sections())
         if confsections:
             raise HelpfulError(
                 "One or more required config sections are missing.",
@@ -63,7 +62,7 @@ class Config:
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
-        self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
+        self.autojoin_channels = config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.white_list_check = config.getboolean('MusicBot', 'WhiteListCheck', fallback=ConfigDefaults.white_list_check)
@@ -76,11 +75,17 @@ class Config:
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
         self.delete_messages  = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
-        self.debug_mode = config.getboolean('MusicBot', 'DebugMode', fallback=ConfigDefaults.debug_mode)
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback=ConfigDefaults.whitelist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
+
+        self.log_masterchannel = config.get('Logging', 'MasterChannel', fallback=ConfigDefaults.log_masterchannel)
+        self.log_subchannels = config.get('Logging', 'SubChannels', fallback=ConfigDefaults.log_subchannels)
+        self.log_exceptions = config.getboolean('Logging', 'Exceptions', fallback=ConfigDefaults.log_exceptions)
+        self.log_interaction = config.getboolean('Logging', 'Interaction', fallback=ConfigDefaults.log_interaction)
+        self.log_debug = config.getboolean('Logging', 'Debug', fallback=ConfigDefaults.log_debug)
+        self.log_timeformat = config.get('Logging', 'TimeFormat', fallback=ConfigDefaults.log_timeformat)
 
         self.run_checks()
 
@@ -89,7 +94,7 @@ class Config:
         """
         Validation logic for bot settings.
         """
-        confpreface = "An error has occured reading the config:\n"
+        confpreface = "An error has occurred reading the config:\n"
 
         if self._email or self._password:
             if not self._email:
@@ -154,6 +159,13 @@ class Config:
                 print("[Warning] AutojoinChannels data invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
 
+        if self.log_subchannels:
+            try:
+                self.log_subchannels = set(x for x in self.log_subchannels.split() if x)
+            except:
+                print("[Warning] LogSubChannels data invalid, will not log to any subchannels")
+                self.log_subchannels = set()
+
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
         self.bound_channels = set(item.replace(',', ' ').strip() for item in self.bound_channels)
@@ -194,6 +206,13 @@ class ConfigDefaults:
     blacklist_file = 'config/blacklist.txt'
     whitelist_file = 'config/whitelist.txt' #here is the file stored
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
+
+    log_masterchannel = None
+    log_subchannels = set()
+    log_exceptions = False
+    log_interaction = False
+    log_debug = False
+    log_timeformat = '%H:%M:%S'
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
 # and id/object conversion so types aren't an issue

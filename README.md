@@ -2,6 +2,8 @@
 
 ## Please use the Version from Rhino instead of this one or use this branch. This Version is at least somewhat tested on a server.
 
+### Also please don't harass @ihaveborkedit for bugs in my horrible code, contact me instead.
+
 MusicBot is a Discord music bot written in [Python](https://www.python.org "Python homepage"). It plays requested songs and if the queue becomes empty it will play through a list of existing songs.
 
 ### How do I set it up?
@@ -9,11 +11,11 @@ MusicBot is a Discord music bot written in [Python](https://www.python.org "Pyth
 - [Windows Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Windows-7-and-up "Windows instructions")
 - [Linux Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Ubuntu-14.04-and-other-versions "Linux instructions")
 - [Docker Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Docker)
-- OSX Tutorial - coming soon, whenever someone decides to make one.
+- [OSX Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-OSX)
 
 ### Commands
 
-Commands are listed [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list "Commands list").
+Non custom Commands are listed [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list "Commands list").
 
 ### Configuration
 
