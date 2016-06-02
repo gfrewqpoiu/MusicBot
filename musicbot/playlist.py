@@ -24,6 +24,7 @@ class Playlist(EventEmitter):
         self.bot = bot
         self.loop = bot.loop
         self.downloader = bot.downloader
+        self.config = bot.config
         self.entries = deque()
         self.recent_songs = deque()
 
@@ -459,6 +460,8 @@ class PlaylistEntry:
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
         print("[Download] Started:", self.url)
+        if self.playlist.config.log_debug:
+            await self.playlist.bot.log(":inbox_tray: Downloading: <{}>".format(self.url))
 
         try:
             result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
@@ -466,6 +469,8 @@ class PlaylistEntry:
             raise ExtractionError(e)
 
         print("[Download] Complete:", self.url)
+        if self.playlist.config.log_debug:
+            await self.playlist.bot.log(":inbox_tray: Complete: <{}>".format(self.url))
 
         if result is None:
             raise ExtractionError("ytdl broke and hell if I know why")
