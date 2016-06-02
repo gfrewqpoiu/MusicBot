@@ -494,7 +494,7 @@ class MusicBot(discord.Client):
                 if not info:
                     self.autoplaylist.remove(song_url)
                     if self.config.log_debug:
-                        await self.log("Removing unplayable song from autoplaylist: %s" % song_url))
+                        await self.log("Removing unplayable song from autoplaylist: %s" % song_url)
                     write_file(self.config.auto_playlist_file, self.autoplaylist)
                     continue
 
