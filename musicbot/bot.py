@@ -484,7 +484,8 @@ class MusicBot(discord.Client):
             while self.autoplaylist:
                 song_url = choice(self.autoplaylist)
                 if song_url in player.playlist.recent_songs:
-                    print("Saved your ears from a repeat from the auto playlist")
+                    if self.config.log_debug:
+                        await self.log("Saved your ears from a repeat from the auto playlist")
                     await self.on_finished_playing(player, **_)
                     break
 
@@ -492,7 +493,8 @@ class MusicBot(discord.Client):
 
                 if not info:
                     self.autoplaylist.remove(song_url)
-                    self.safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
+                    if self.config.log_debug:
+                        await self.log("Removing unplayable song from autoplaylist: %s" % song_url))
                     write_file(self.config.auto_playlist_file, self.autoplaylist)
                     continue
 

@@ -278,8 +278,6 @@ class MusicPlayer(EventEmitter):
             self._current_player._connected.set()
 
     async def websocket_check(self):
-        if self.bot.config.debug_mode:
-            print("[Debug] Creating websocket check loop")
         if self.bot.config.log_debug:
             await self.bot.log(":electric_plug: Creating websocket check loop")
 
