@@ -378,6 +378,7 @@ class MusicBot(discord.Client):
             Logs information to a Discord text channel
             :param channel: - The channel the information originates from
         """
+        x=expire_in
         if channel:
             if self.config.log_subchannels:
                 for i in set(self.config.log_subchannels):
@@ -388,7 +389,7 @@ class MusicBot(discord.Client):
                     else:
                         server = subchannel.server
                         if channel in server.channels:
-                            await self.safe_send_message(subchannel, ":stopwatch: `{}` ".format(time.strftime(self.config.log_timeformat)) + string, expire_in)
+                            await self.safe_send_message(subchannel, ":stopwatch: `{}` ".format(time.strftime(self.config.log_timeformat)) + string, expire_in=x)
 
             if self.config.log_masterchannel:
                 id = self.config.log_masterchannel
@@ -397,7 +398,7 @@ class MusicBot(discord.Client):
                     self.config.log_masterchannel = None
                     print("[Warning] Bot can't find logging master channel: {}".format(id))
                 else:
-                    await self.safe_send_message(master, ":stopwatch: `{}` :mouse_three_button: `{}` ".format(time.strftime(self.config.log_timeformat), channel.server.name) + string, expire_in)
+                    await self.safe_send_message(master, ":stopwatch: `{}` :mouse_three_button: `{}` ".format(time.strftime(self.config.log_timeformat), channel.server.name) + string, expire_in=x)
 
         else:
             if self.config.log_masterchannel:
@@ -407,7 +408,7 @@ class MusicBot(discord.Client):
                     self.config.log_masterchannel = None
                     print("[Warning] Bot can't find logging master channel: {}".format(id))
                 else:
-                    await self.safe_send_message(master, ":stopwatch: `{}` ".format(time.strftime(self.config.log_timeformat)) + string, expire_in)
+                    await self.safe_send_message(master, ":stopwatch: `{}` ".format(time.strftime(self.config.log_timeformat)) + string, expire_in=x)
 
     async def get_player(self, channel, create=False):
         server = channel.server
@@ -485,7 +486,8 @@ class MusicBot(discord.Client):
                 song_url = choice(self.autoplaylist)
                 if song_url in player.playlist.recent_songs:
                     if self.config.log_debug:
-                        await self.log("Saved your ears from a repeat from the auto playlist", expire_in=120)
+                        expire_in=120
+                        await self.log("Saved your ears from a repeat from the auto playlist", expire_in)
                     await self.on_finished_playing(player, **_)
                     break
 
