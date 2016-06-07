@@ -101,6 +101,7 @@ class MusicBot(discord.Client):
 
         self.undo = False
         self.exit_signal = None
+        self.rioters = set()
 
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
@@ -373,11 +374,12 @@ class MusicBot(discord.Client):
             await self.ws.send(utils.to_json(payload))
             self.the_voice_clients[server.id].channel = channel
             
-    async def log(self, string, channel=None):
+    async def log(self, string, channel=None, expire_in=0):
         """
             Logs information to a Discord text channel
             :param channel: - The channel the information originates from
         """
+        x=expire_in
         if channel:
             if self.config.log_subchannels:
                 for i in set(self.config.log_subchannels):
@@ -388,7 +390,8 @@ class MusicBot(discord.Client):
                     else:
                         server = subchannel.server
                         if channel in server.channels:
-                            await self.safe_send_message(subchannel, ":stopwatch: `{}` ".format(time.strftime(self.config.log_timeformat)) + string)
+
+                            await self.safe_send_message(subchannel, ":stopwatch: `{}` ".format(time.strftime(self.config.log_timeformat)) + string, expire_in=x)
 
             if self.config.log_masterchannel:
                 id = self.config.log_masterchannel
@@ -397,7 +400,7 @@ class MusicBot(discord.Client):
                     self.config.log_masterchannel = None
                     print("[Warning] Bot can't find logging master channel: {}".format(id))
                 else:
-                    await self.safe_send_message(master, ":stopwatch: `{}` :mouse_three_button: `{}` ".format(time.strftime(self.config.log_timeformat), channel.server.name) + string)
+                    await self.safe_send_message(master, ":stopwatch: `{}` :mouse_three_button: `{}` ".format(time.strftime(self.config.log_timeformat), channel.server.name) + string, expire_in=x)
 
         else:
             if self.config.log_masterchannel:
@@ -407,7 +410,7 @@ class MusicBot(discord.Client):
                     self.config.log_masterchannel = None
                     print("[Warning] Bot can't find logging master channel: {}".format(id))
                 else:
-                    await self.safe_send_message(master, ":stopwatch: `{}` ".format(time.strftime(self.config.log_timeformat)) + string)
+                    await self.safe_send_message(master, ":stopwatch: `{}` ".format(time.strftime(self.config.log_timeformat)) + string, expire_in=x)
 
     async def get_player(self, channel, create=False):
         server = channel.server
@@ -485,7 +488,8 @@ class MusicBot(discord.Client):
                 song_url = choice(self.autoplaylist)
                 if song_url in player.playlist.recent_songs:
                     if self.config.log_debug:
-                        await self.log("Saved your ears from a repeat from the auto playlist")
+                        expire_in=120
+                        await self.log("Saved your ears from a repeat from the auto playlist", expire_in)
                     await self.on_finished_playing(player, **_)
                     break
 
@@ -1748,6 +1752,33 @@ class MusicBot(discord.Client):
 
         player.playlist.clear()
         return Response(':put_litter_in_its_place:', delete_after=20)
+        
+    async def cmd_clearrecent(self, player, author):
+        """
+        Usage:
+            {command_prefix}clearrecent
+
+        Clears the recent songs list.
+        """
+
+        player.playlist.clear_recent()
+        return Response(':put_litter_in_its_place:', delete_after=20)
+        
+
+    async def cmd_undo(self, player, author):
+        """
+        Usage:
+            {command_prefix}undo
+
+        Undo the last song queued.
+        """
+
+        if self.undo == False:
+            return Response('No new song was added recently.', delete_after=20)
+        else:
+            self.undo = False
+            player.playlist.undo()
+            return Response('Removed last song.', delete_after=20)
 
     async def cmd_undo(self, player, author):
         """
@@ -2436,6 +2467,43 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
+    async def cmd_riot(self, author, channel):
+        """
+        Usage:
+            {command_prefix}riot
+
+        You will start rioting.
+        Warning: The bot might not like that.
+        """
+        case=0 #this will be randint(0,casenumber) when more than 1 case is implemented.
+        if author.id in self.rioters: #duplicate atm but just in case
+            return Response("You are already rioting!", reply=True, delete_after=10)
+
+        if case == 0:
+            self.rioters.add(author.id)
+            self.blacklist.add(author.id)
+            return Response("I think you need to calm down, use the icave command when you calmed down!")
+
+
+    async def cmd_icave(self, author, channel):
+        """
+        Usage:
+            {command_prefix}icave
+            
+        Caves to the bots demands
+        """
+        if author.id not in self.blacklist:
+            return Response("You don't need to cave!", delete_after=20)    
+    
+        if author.id in self.blacklist and author.id not in self.rioters:
+            return Response("Nice Try, but you are manually blacklisted", reply=True, delete_after=5)
+
+        else:
+            self.blacklist.remove(author.id)
+            self.rioters.remove(author.id)
+            return Response("Nice to see you calm down, removed from the blacklist", reply=True, delete_after=20)
+
+
     async def on_message(self, message):
         await self.wait_until_ready()
 
@@ -2462,13 +2530,13 @@ class MusicBot(discord.Client):
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
-        if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
+        if message.author.id in self.blacklist and message.author.id != self.config.owner_id and command != 'icave':
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             if self.config.log_interaction:
                 await self.log(":no_pedestrians: `{0.name}#{0.discriminator}`: `{1}`".format(message.author, message_content), message.channel)
             return
             
-        if self.config.white_list_check and message.author.id not in self.whitelist and message.author.id != self.config.owner_id:
+        if self.config.white_list_check and message.author.id not in self.whitelist and message.author.id != self.config.owner_id and command != 'icave' and command != 'riot':
             self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return    
         else:

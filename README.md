@@ -4,6 +4,8 @@
 
 ### Also please don't harass @ihaveborkedit for bugs in my horrible code, contact me instead.
 
+### Also please don't harass @ihaveborkedit for bugs in my horrible code, contact me instead.
+
 MusicBot is a Discord music bot written in [Python](https://www.python.org "Python homepage"). It plays requested songs and if the queue becomes empty it will play through a list of existing songs.
 
 ### How do I set it up?
