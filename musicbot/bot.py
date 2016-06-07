@@ -101,6 +101,7 @@ class MusicBot(discord.Client):
 
         self.undo = False
         self.exit_signal = None
+        self.rioters = set()
 
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
@@ -2450,6 +2451,43 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
+    async def cmd_riot(self, author, channel):
+        """
+        Usage:
+            {command_prefix}riot
+
+        You will start rioting.
+        Warning: The bot might not like that.
+        """
+        case=0 #this will be randint(0,casenumber) when more than 1 case is implemented.
+        if author.id in self.rioters: #duplicate atm but just in case
+            return Response("You are already rioting!", reply=True, delete_after=10)
+
+        if case == 0:
+            self.rioters.add(author.id)
+            self.blacklist.add(author.id)
+            return Response("I think you need to calm down, use the icave command when you calmed down!")
+
+
+    async def cmd_icave(self, author, channel):
+        """
+        Usage:
+            {command_prefix}icave
+            
+        Caves to the bots demands
+        """
+        if author.id not in self.blacklist:
+            return Response("You don't need to cave!", delete_after=20)    
+    
+        if author.id in self.blacklist and author.id not in self.rioters:
+            return Response("Nice Try, but you are manually blacklisted", reply=True, delete_after=5)
+
+        else:
+            self.blacklist.remove(author.id)
+            self.rioters.remove(author.id)
+            return Response("Nice to see you calm down, removed from the blacklist", reply=True, delete_after=20)
+
+
     async def on_message(self, message):
         await self.wait_until_ready()
 
@@ -2476,13 +2514,13 @@ class MusicBot(discord.Client):
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
-        if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
+        if message.author.id in self.blacklist and message.author.id != self.config.owner_id and command != 'icave':
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             if self.config.log_interaction:
                 await self.log(":no_pedestrians: `{0.name}#{0.discriminator}`: `{1}`".format(message.author, message_content), message.channel)
             return
             
-        if self.config.white_list_check and message.author.id not in self.whitelist and message.author.id != self.config.owner_id:
+        if self.config.white_list_check and message.author.id not in self.whitelist and message.author.id != self.config.owner_id and command != 'icave' and command != 'riot':
             self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return    
         else:
