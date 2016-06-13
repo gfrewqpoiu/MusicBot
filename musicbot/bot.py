@@ -108,7 +108,7 @@ class MusicBot(discord.Client):
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
 
-        self.headers['user-agent'] += ' MusicBot/%s' % BOTVERSION
+        self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
         # TODO: Do these properly
         ssd_defaults = {'last_np_msg': None, 'auto_paused': False}
@@ -273,6 +273,7 @@ class MusicBot(discord.Client):
                     print("Connection established.")
                     break
                 except:
+                    traceback.print_exc()
                     print("Failed to connect, retrying (%s/%s)..." % (x+1, retries))
                     await asyncio.sleep(1)
                     await self.ws.voice_state(server.id, None, self_mute=True)
@@ -317,7 +318,8 @@ class MusicBot(discord.Client):
         try:
             await vc.disconnect()
         except:
-            pass
+            print("Error disconnecting during reconnect")
+            traceback.print_exc()
 
         await asyncio.sleep(0.1)
 
@@ -402,7 +404,7 @@ class MusicBot(discord.Client):
                 else:
                     await self.safe_send_message(master, ":stopwatch: `{}` ".format(time.strftime(self.config.log_timeformat)) + string, expire_in=x)
 
-    async def get_player(self, channel, create=False):
+    async def get_player(self, channel, create=False) -> MusicPlayer:
         server = channel.server
 
         if server.id not in self.players:
@@ -587,12 +589,8 @@ class MusicBot(discord.Client):
         try:
             return await super().send_typing(destination)
         except discord.Forbidden:
-
             if self.config.log_exceptions:
                 await self.log(":warning: No permission to send typing to %s" % destination.name, destination)
-        except discord.HTTPException as e:
-            if e.response.status == 502:
-                await self.send_typing(destination)
 
     async def edit_profile(self, **fields):
         if self.user.bot:
@@ -1003,7 +1001,7 @@ class MusicBot(discord.Client):
         return Response("The Rules and commands can be found here: https://goo.gl/fRdK5U", reply=True, delete_after=30)
         
     @owner_only
-    async def cmd_joinserver(self, message, server_link):
+    async def cmd_joinserver(self, message, server_link=None):
         """
         Usage:
             {command_prefix}joinserver invite_link
@@ -1012,15 +1010,17 @@ class MusicBot(discord.Client):
         """
 
         if self.user.bot:
+            appinfo = await self.application_info()
+            url = discord.utils.oauth_url(appinfo.id)
             return Response(
-                "Bot accounts can't use invite links!  See: "
-                "https://discordapp.com/developers/docs/topics/oauth2#adding-bots-to-guilds",
+                "Bot accounts can't use invite links!  Click here to invite me: \n%s" % url,
                 reply=True, delete_after=30
             )
 
         try:
-            await self.accept_invite(server_link)
-            return Response(":+1:")
+            if server_link:
+                await self.accept_invite(server_link)
+                return Response(":+1:")
 
         except:
             raise exceptions.CommandError('Invalid URL provided:\n{}\n'.format(server_link), expire_in=30)
