@@ -1,4 +1,4 @@
-# MusicBot gfrew Editon
+# MusicBot gfrew Edition
 
 ## Please use the Version from Rhino instead of this one or at least use the in_usage branch. This Version is under heavy development and can break anytime.
 
