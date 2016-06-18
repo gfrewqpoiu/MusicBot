@@ -201,13 +201,12 @@ class MusicBot(discord.Client):
                     joined_servers.append(channel.server)
                 except Exception as e:
                     if self.config.log_exceptions:
-                        await self.log(":warning: Could not join %s\n```python\n%s\n```" % (channel.name, traceback.print_exc()), channel)
+                        await self.log(":warning: Could not join %s\n```python\n%s\n```" % (channel.name, traceback.format_exc()), channel)
                     print("Failed to join", channel.name)
 
             elif channel:
                 if self.config.log_exceptions:
-                    await self.log(":warning: Could not join %s because it is a text channel" % channel.name, channel)
-                print("Not joining %s on %s, that's a text channel." % (channel.name, channel.server.name))
+                    print("Not joining %s on %s, that's a text channel." % (channel.name, channel.server.name))
 
             else:
                 print("Invalid channel thing: " + channel)
@@ -320,6 +319,7 @@ class MusicBot(discord.Client):
         except:
             print("Error disconnecting during reconnect")
             traceback.print_exc()
+            await self.log(":warning: Error disconnecting during reconnect: {}\n```py\n{}\n```".format(server.name, traceback.format_exc()))
 
         await asyncio.sleep(0.1)
 
@@ -366,7 +366,7 @@ class MusicBot(discord.Client):
 
             await self.ws.send(utils.to_json(payload))
             self.the_voice_clients[server.id].channel = channel
-            
+
     async def log(self, string, channel=None, expire_in=0):
         """
             Logs information to a Discord text channel
@@ -590,7 +590,7 @@ class MusicBot(discord.Client):
             return await super().send_typing(destination)
         except discord.Forbidden:
             if self.config.log_exceptions:
-                await self.log(":warning: No permission to send typing to %s" % destination.name, destination)
+                await self.log(":warning: No permission to send typing to %s" % destination)
 
     async def edit_profile(self, **fields):
         if self.user.bot:
@@ -723,7 +723,7 @@ class MusicBot(discord.Client):
             chlist.difference_update(invalids)
             self.config.autojoin_channels.difference_update(invalids)
 
-            print("Autojoining voice chanels:")
+            print("Autojoining voice channels:")
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
 
             if invalids and self.config.debug_mode:
@@ -745,8 +745,19 @@ class MusicBot(discord.Client):
                 self.safe_print(' - %s/%s' % (channel.server.name.strip(), channel.name.strip()))
         if self.config.log_subchannels:
             print("Logging to subchannels:")
+            chlist = set(self.get_channel(i) for i in self.config.log_subchannels if i)
+            chlist.discard(None)
+            invalids = set()
+
+            invalids.update(c for c in chlist if c.type == discord.ChannelType.text)
+            chlist.difference_update(invalids)
+            self.config.autojoin_channels.difference_update(invalids)
             chlist = [self.get_channel(i) for i in self.config.log_subchannels if i]
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+
+            if invalids and self.config.debug_mode:
+                print("\nNot logging to subchannels:")
+                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
         if self.config.log_masterchannel or self.config.log_subchannels:
             print("  Exceptions: " + ['Disabled', 'Enabled'][self.config.log_exceptions])
             print("  Interaction: " + ['Disabled', 'Enabled'][self.config.log_interaction])
@@ -769,7 +780,8 @@ class MusicBot(discord.Client):
         print("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
         print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
         if self.config.delete_messages:
-            print("  Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
+            print("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
+        print("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
         print("  Downloaded songs will be %s" % ['deleted', 'saved'][self.config.save_videos])
         print()
 
@@ -2522,6 +2534,7 @@ class MusicBot(discord.Client):
         if self.config.white_list_check and message.author.id not in self.whitelist and message.author.id != self.config.owner_id and command != 'icave' and command != 'riot':
             self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return    
+        
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
             if self.config.log_interaction:
