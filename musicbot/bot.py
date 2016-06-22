@@ -39,43 +39,65 @@ load_opus_lib()
 
 
 class SkipState:
+    """
+    Keeps a list of all users that used Skip
+    Methods: skip_count() reset() add_hyper()
+    """
     def __init__(self):
         self.skippers = set()
         self.skip_msgs = set()
 
     @property
     def skip_count(self):
+        """Returns the current amount of Skippers"""
         return len(self.skippers)
 
     def reset(self):
+        """Empties the Skipper List"""
         self.skippers.clear()
         self.skip_msgs.clear()
 
     def add_skipper(self, skipper, msg):
+        """Adds a user to the list of Skippers, returns new skip_count"""
         self.skippers.add(skipper)
         self.skip_msgs.add(msg)
         return self.skip_count
 
 class HypeState:
+    """
+    Keeps a list of all users that used Hype
+
+    Methods: hype_count() reset() add_hyper()
+    """
     def __init__(self):
         self.hypers = set()
         self.hype_msgs = set()
 
     @property
     def hype_count(self):
+        """Returns the current amount of Hypers"""
         return len(self.hypers)
 
     def reset(self):
+        """Empties the Hypers List"""
         self.hypers.clear()
         self.hype_msgs.clear()
 
     def add_hyper(self, hyper, msg):
+        """Adds a user to the list of Hypers, returns new hype_count"""
         self.hypers.add(hyper)
         self.hype_msgs.add(msg)
         return self.hype_count
 
 
 class Response:
+    """
+    Posts a response to the author of the command
+    Args:
+        content: Message to be sent
+        reply: Set to True to mention the User
+        delete_after: Set to int Seconds to delete Response
+    """
     def __init__(self, content, reply=False, delete_after=0):
         self.content = content
         self.reply = reply
@@ -116,6 +138,7 @@ class MusicBot(discord.Client):
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
+        """Allows the wrapped function only for the bot Owner Account"""
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
             # Only allow the owner to use these commands
@@ -231,6 +254,7 @@ class MusicBot(discord.Client):
                 "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
 
     async def get_voice_client(self, channel):
+        """Creates a voice client and connects it to specified Channel"""
         if isinstance(channel, Object):
             channel = self.get_channel(channel.id)
 
@@ -480,8 +504,7 @@ class MusicBot(discord.Client):
                 song_url = choice(self.autoplaylist)
                 if song_url in player.playlist.recent_songs:
                     if self.config.log_debug:
-                        expire_in=120
-                        await self.log("Saved your ears from a repeat from the auto playlist", expire_in)
+                        await self.log("Saved your ears from a repeat from the auto playlist", expire_in=120)
                     await self.on_finished_playing(player, **_)
                     break
 
@@ -537,6 +560,17 @@ class MusicBot(discord.Client):
 
 
     async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
+        """
+        Sends a message in textchat, returns message or error.
+
+        Params:
+            dest: Destination Channel
+            content: Text of the Message
+            tts(Bool): Whether to use Text to Speech for the Message
+            expire_in: Remove the Message after int seconds
+            also_delete: Also delete the given message
+            quiet(Bool): Set True to prevent Error messages
+        """
         msg = None
         try:
             msg = await self.send_message(dest, content, tts=tts)
