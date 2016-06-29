@@ -106,14 +106,11 @@ class Response:
 
 class MusicBot(discord.Client):
     def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
-        super().__init__()
-
         self.players = {}
         self.the_voice_clients = {}
         self.locks = defaultdict(asyncio.Lock)
         self.voice_client_connect_lock = asyncio.Lock()
         self.voice_client_move_lock = asyncio.Lock()
-        self.aiosession = aiohttp.ClientSession(loop=self.loop)
 
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
@@ -125,16 +122,20 @@ class MusicBot(discord.Client):
         self.undo = False
         self.exit_signal = None
         self.rioters = set()
+        self.init_ok = False
+        self.cached_client_id = None
 
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
 
-        self.http.user_agent += ' MusicBot/%s' % BOTVERSION
-
         # TODO: Do these properly
         ssd_defaults = {'last_np_msg': None, 'auto_paused': False}
         self.server_specific_data = defaultdict(lambda: dict(ssd_defaults))
+
+        super().__init__()
+        self.aiosession = aiohttp.ClientSession(loop=self.loop)
+        self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
@@ -252,6 +253,13 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.PermissionsError(
                 "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
+
+    async def generate_invite_link(self, *, permissions=None, server=None):
+        if not self.cached_client_id:
+            appinfo = await self.application_info()
+            self.cached_client_id = appinfo.id
+
+        return discord.utils.oauth_url(self.cached_client_id, permissions=permissions, server=server)
 
     async def get_voice_client(self, channel):
         """Creates a voice client and connects it to specified Channel"""
@@ -489,6 +497,7 @@ class MusicBot(discord.Client):
             if self.config.log_interaction:
                 await self.log(":microphone: `%s` (requested by `%s`) is now playing in **%s**" % (entry.title, entry.meta['author'], player.voice_client.channel.name), channel)
 
+
     async def on_player_resume(self, entry, **_):
         await self.update_now_playing(entry)
 
@@ -626,6 +635,9 @@ class MusicBot(discord.Client):
             if self.config.log_exceptions:
                 await self.log(":warning: No permission to send typing to %s" % destination)
 
+            if self.config.debug_mode:
+                print("Could not send typing to %s, no permssion" % destination)
+
     async def edit_profile(self, **fields):
         if self.user.bot:
             return await super().edit_profile(**fields)
@@ -706,6 +718,8 @@ class MusicBot(discord.Client):
                 "The OwnerID is the id of the owner, not the bot.  "
                 "Figure out which one is which and use the correct information.")
 
+        self.init_ok = True
+
         self.safe_print("Bot:   %s/%s#%s" % (self.user.id, self.user.name, self.user.discriminator))
 
         owner = self._get_owner(voice=True) or self._get_owner()
@@ -722,8 +736,12 @@ class MusicBot(discord.Client):
             [self.safe_print(' - ' + s.name) for s in self.servers]
 
         else:
-            print("Owner unavailable, bot is not on any servers.")
-            # if bot: post help link, else post something about invite links
+            print("Owner unknown, bot is not on any servers.")
+            if self.user.bot:
+                print("\nTo make the bot join a server, paste this link in your browser.")
+                print("Note: You should be logged into your main account and have \n"
+                      "manage server permissions on the server you want the bot to join.\n")
+                print("    " + await self.generate_invite_link())
 
         print()
 
@@ -1056,10 +1074,9 @@ class MusicBot(discord.Client):
         """
 
         if self.user.bot:
-            appinfo = await self.application_info()
-            url = discord.utils.oauth_url(appinfo.id)
+            url = await self.generate_invite_link()
             return Response(
-                "Bot accounts can't use invite links!  Click here to invite me: \n%s" % url,
+                "Bot accounts can't use invite links!  Click here to invite me: \n{}".format(url),
                 reply=True, delete_after=30
             )
 
@@ -1262,7 +1279,7 @@ class MusicBot(discord.Client):
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
             raise exceptions.PermissionsError(
-                "You have reached your playlist item limit (%s)" % permissions.max_songs, expire_in=30
+                "You have reached your enqueued song limit (%s)" % permissions.max_songs, expire_in=30
             )
         await self.send_typing(channel)
 
@@ -1459,6 +1476,7 @@ class MusicBot(discord.Client):
             channel, "Processing %s songs..." % num_songs)  # TODO: From playlist_title
         await self.send_typing(channel)
 
+        entries_added = 0
         if extractor_type == 'youtube:playlist':
             try:
                 entries_added = await player.playlist.async_process_youtube_playlist(
@@ -1838,7 +1856,7 @@ class MusicBot(discord.Client):
         if not player.current_entry:
             if player.playlist.peek():
                 if player.playlist.peek()._is_downloading:
-                    print(player.playlist.peek()._waiting_futures[0].__dict__)
+                    # print(player.playlist.peek()._waiting_futures[0].__dict__)
                     return Response("The next song (%s) is downloading, please wait." % player.playlist.peek().title)
 
                 elif player.playlist.peek().is_downloaded:
@@ -1850,12 +1868,11 @@ class MusicBot(discord.Client):
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
 
-        if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-            player.current_entry.meta.get('author', False)
-            if author.id == player.current_entry.meta['author'].id: #If person that requested the song skips, skip instantly
-                player.skip()  # check autopause stuff here
-                await self._manual_delete_check(message)
-                return #My method
+
+        if author == player.current_entry.meta.get('author', None):
+            player.skip()  # check autopause stuff here
+            await self._manual_delete_check(message)
+            return
 
         if author.self_deaf == True or author.deaf == True:
             return Response('You cannot use !skip while deafened',reply=True,delete_after=20)
