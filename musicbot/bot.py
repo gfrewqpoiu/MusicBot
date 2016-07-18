@@ -24,6 +24,7 @@ from collections import defaultdict
 
 from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
+from musicbot.entry import StreamPlaylistEntry
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
 from musicbot.utils import load_file, write_file, sane_round_int
@@ -454,7 +455,8 @@ class MusicBot(discord.Client):
                 .on('pause', self.on_player_pause) \
                 .on('stop', self.on_player_stop) \
                 .on('finished-playing', self.on_player_finished_playing) \
-                .on('entry-added', self.on_player_entry_added)
+                .on('entry-added', self.on_player_entry_added) \
+                .on('error', self.on_player_error)
 
             player.skip_state = SkipState()
             player.hype_state = HypeState()
@@ -546,6 +548,15 @@ class MusicBot(discord.Client):
     async def on_player_entry_added(self, playlist, entry, **_):
         pass
 
+    async def on_player_error(self, entry, ex, **_):
+        if 'channel' in entry.meta:
+            await self.safe_send_message(
+                entry.meta['channel'],
+                "```\nError from FFmpeg:\n{}\n```".format(ex)
+            )
+        else:
+            traceback.print_exception(ex.__class__, ex, ex.__traceback__)
+
     async def update_now_playing(self, entry=None, is_paused=False):
         game = None
 
@@ -568,7 +579,7 @@ class MusicBot(discord.Client):
         await self.change_status(game)
 
 
-    async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
+    async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False, allow_none=True):
         """
         Sends a message in textchat, returns message or error.
 
@@ -580,15 +591,11 @@ class MusicBot(discord.Client):
             also_delete: Also delete the given message
             quiet(Bool): Set True to prevent Error messages
         """
+
         msg = None
         try:
-            msg = await self.send_message(dest, content, tts=tts)
-
-            if msg and expire_in:
-                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
-
-            if also_delete and isinstance(also_delete, discord.Message):
-                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
+            if content is not None or allow_none:
+                msg = await self.send_message(dest, content, tts=tts)
 
         except discord.Forbidden:
             if not quiet:
@@ -597,6 +604,13 @@ class MusicBot(discord.Client):
         except discord.NotFound:
             if not quiet:
                 self.safe_print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
+
+        finally:
+            if msg and expire_in:
+                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
+
+            if also_delete and isinstance(also_delete, discord.Message):
+                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
 
         return msg
 
@@ -754,8 +768,11 @@ class MusicBot(discord.Client):
             chlist.difference_update(invalids)
             self.config.bound_channels.difference_update(invalids)
 
-            print("Bound to text channels:")
-            [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+            if chlist:
+                print("Bound to text channels:")
+                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+            else:
+                print("Not bound to any text channels")
 
             if invalids and self.config.debug_mode:
                 print("\nNot binding to voice channels:")
@@ -775,11 +792,14 @@ class MusicBot(discord.Client):
             chlist.difference_update(invalids)
             self.config.autojoin_channels.difference_update(invalids)
 
-            print("Autojoining voice channels:")
-            [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+            if chlist:
+                print("Autojoining voice chanels:")
+                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+            else:
+                print("Not bound to any text channels")
 
             if invalids and self.config.debug_mode:
-                print("\nCannot join text channels:")
+                print("\nCannot autojoin text channels:")
                 [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
             autojoin_channels = chlist
@@ -1292,7 +1312,11 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(e, expire_in=30)
 
         if not info:
-            raise exceptions.CommandError("That video cannot be played.", expire_in=30)
+            msg = "That video cannot be played."
+            raise exceptions.CommandError(
+                "That video cannot be played.  Try using the {}stream command.".format(self.config.command_prefix),
+                expire_in=30
+            )
 
         # abstract the search handling away from the user
         # our ytdl options allow us to use search strings as input urls
@@ -1401,8 +1425,8 @@ class MusicBot(discord.Client):
             print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
                 listlen,
                 self._fixg(ttime),
-                ttime / listlen,
-                ttime / listlen - wait_per_song,
+                ttime / listlen if listlen else 0,
+                ttime / listlen - wait_per_song if listlen - wait_per_song else 0,
                 self._fixg(wait_per_song * num_songs))
             )
 
@@ -1552,6 +1576,29 @@ class MusicBot(discord.Client):
         return Response("Enqueued {} songs to be played in {} seconds".format(
             songs_added, self._fixg(ttime, 1)), delete_after=30)
 
+    async def cmd_stream(self, player, channel, author, permissions, song_url):
+        """
+        Usage:
+            {command_prefix}stream song_link
+
+        Enqueue a media stream.
+        This could mean an actual stream like Twitch or shoutcast, or simply streaming
+        media without predownloading it.  Note: FFmpeg is notoriously bad at handling
+        streams, especially on poor connections.  You have been warned.
+        """
+
+        song_url = song_url.strip('<>')
+
+        if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
+            raise exceptions.PermissionsError(
+                "You have reached your enqueued song limit (%s)" % permissions.max_songs, expire_in=30
+            )
+
+        await self.send_typing(channel)
+        entry, entries = await player.playlist.add_stream_entry(song_url, channel=channel, author=author)
+
+        return Response(":+1:", delete_after=6)
+
     async def cmd_search(self, player, channel, author, permissions, leftover_args):
         """
         Usage:
@@ -1577,6 +1624,7 @@ class MusicBot(discord.Client):
 
         def argcheck():
             if not leftover_args:
+                # noinspection PyUnresolvedReferences
                 raise exceptions.CommandError(
                     "Please specify a search query.\n%s" % dedent(
                         self.cmd_search.__doc__.format(command_prefix=self.config.command_prefix)),
@@ -1697,13 +1745,28 @@ class MusicBot(discord.Client):
 
             song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
             song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
-            prog_str = '`[%s/%s]`' % (song_progress, song_total)
+
+            streaming = isinstance(player.current_entry, StreamPlaylistEntry)
+            prog_str = ('`[{progress}]`' if streaming else '`[{progress}/{total}]`').format(
+                progress=song_progress, total=song_total
+            )
+            action_text = 'Streaming' if streaming else 'Playing'
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-                np_text = "Now Playing: **%s** added by **%s** %s\n" % (
-                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str)
+                np_text = "Now {action}: **{title}** added by **{author}** {progress}\n:point_right: <{url}>".format(
+                    action=action_text,
+                    title=player.current_entry.title,
+                    author=player.current_entry.meta['author'].name,
+                    progress=prog_str,
+                    url=player.current_entry.url
+                )
             else:
-                np_text = "Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str)
+                np_text = "Now {action}: **{title}** {progress}\n:point_right: <{url}>".format(
+                    action=action_text,
+                    title=player.current_entry.title,
+                    progress=prog_str,
+                    url=player.current_entry.url
+                )
 
             self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
             await self._manual_delete_check(message)
@@ -2596,6 +2659,8 @@ class MusicBot(discord.Client):
         argspec = inspect.signature(handler)
         params = argspec.parameters.copy()
 
+        sentmsg = response = None
+
         # noinspection PyBroadException
         try:
             if user_permissions.ignore_non_voice and command in user_permissions.ignore_non_voice:
@@ -2716,6 +2781,11 @@ class MusicBot(discord.Client):
         if self.config.log_interaction:
             await self.log(":performing_arts: `%s#%s` left: `%s`" % (self.user.name, self.user.discriminator, server.name))
 
+        finally:
+            if not sentmsg and not response and self.config.delete_invoking:
+                await asyncio.sleep(5)
+                await self.safe_delete_message(message, quiet=False)
+
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
             return
@@ -2767,6 +2837,18 @@ class MusicBot(discord.Client):
                 await self.log(":house: `{}` changed regions: `{}` to `{}`".format(after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
+
+    async def on_server_join(self, server:discord.Server):
+        if not self.user.bot:
+            alertmsg = "<@{uid}> Hi I'm a musicbot please mute me."
+
+            if server.id == "81384788765712384" and not server.unavailable: # Discord API
+                playground = server.get_channel("94831883505905664") # or server
+                await self.safe_send_message(playground, alertmsg.format(uid="66237334693085184")) # meew0
+
+            elif server.id == "129489631539494912" and not server.unavailable: # Rhino Bot Help
+                bot_testing = server.get_channel("134771894292316160") # or server
+                await self.safe_send_message(bot_testing, alertmsg.format(uid="104766296687656960")) # akatsuki
 
 
 if __name__ == '__main__':
