@@ -11,6 +11,7 @@ from threading import Thread
 from collections import deque
 from shutil import get_terminal_size
 
+from .utils import avg
 from .lib.event_emitter import EventEmitter
 from .exceptions import FFmpegError, FFmpegWarning
 
@@ -48,7 +49,7 @@ class PatchedBuff:
             self.rmss.append(rms)
 
             max_rms = sorted(self.rmss)[-1]
-            meter_text = 'avg rms: {:.2f}, max rms: {:.2f} '.format(self._avg(self.rmss), max_rms)
+            meter_text = 'avg rms: {:.2f}, max rms: {:.2f} '.format(avg(self.rmss), max_rms)
             self._pprint_meter(rms / max(1, max_rms), text=meter_text, shift=True)
 
         return frame
@@ -64,9 +65,6 @@ class PatchedBuff:
                 frame_array[i] = int(frame_array[i] * min(mult, min(1, maxv)))
 
             return frame_array.tobytes()
-
-    def _avg(self, i):
-        return sum(i) / len(i)
 
     def _pprint_meter(self, perc, *, char='#', text='', shift=True):
         tx, ty = get_terminal_size()
@@ -176,10 +174,10 @@ class MusicPlayer(EventEmitter):
 
         self._current_entry = None
 
-        if self._stderr_future.done() and self._stderr_future.exception:
+        if self._stderr_future.done() and self._stderr_future.exception():
             # I'm not sure that this would ever not be done if it gets to this point
             # unless ffmpeg is doing something highly questionable
-            self.emit('error', entry=entry, ex=self._stderr_future.exception)
+            self.emit('error', entry=entry, ex=self._stderr_future.exception())
 
         if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
@@ -343,6 +341,8 @@ class MusicPlayer(EventEmitter):
         #       Change frame_count to bytes_read in the PatchedBuff
 
 def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
+    last_ex = None
+
     while True:
         data = popen.stderr.readline()
         if data:
@@ -354,14 +354,16 @@ def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
 
             except FFmpegError as e:
                 print("Error from FFmpeg:", e)
-                future.set_exception(e)
+                last_ex = e
 
             except FFmpegWarning:
                 pass # useless message
         else:
             break
 
-    if not future.done():
+    if last_ex:
+        future.set_exception(last_ex)
+    else:
         future.set_result(True)
 
 def check_stderr(data:bytes):
@@ -370,20 +372,23 @@ def check_stderr(data:bytes):
     except:
         return True # fuck it
 
-    nopes = [
+    # TODO: Regex
+    warnings = [
         "Header missing",
         "Estimating duration from birate, this may be inaccurate",
         "Using AVStream.codec to pass codec parameters to muxers is deprecated, use AVStream.codecpar instead.",
         "Application provided invalid, non monotonically increasing dts to muxer in stream",
+        "Last message repeated",
+        "Failed to send close message",
     ]
-    very_nopes = [
+    errors = [
         "Invalid data found when processing input",
     ]
 
-    if any(nope in data for nope in nopes):
+    if any(msg in data for msg in warnings):
         raise FFmpegWarning(data)
 
-    if any(nope in data for nope in very_nopes):
+    if any(msg in data for msg in errors):
         raise FFmpegError(data)
 
     return True
